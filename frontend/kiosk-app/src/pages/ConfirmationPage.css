@@ -1,0 +1,62 @@
+.confirmation-page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #7b4836 0%, #5a3426 100%);
+}
+
+.confirmation-content {
+  text-align: center;
+  color: white;
+}
+
+.success-icon {
+  font-size: 8rem;
+  margin-bottom: 2rem;
+  animation: bounce 0.5s;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.confirmation-content h1 {
+  font-size: 3rem;
+  margin-bottom: 2rem;
+}
+
+.order-number {
+  background: rgba(255,255,255,0.2);
+  padding: 2rem 3rem;
+  border-radius: 20px;
+  margin: 2rem auto;
+  max-width: 500px;
+}
+
+.order-number p {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.order-number h2 {
+  font-size: 4rem;
+  font-weight: bold;
+  letter-spacing: 3px;
+}
+
+.thank-you {
+  font-size: 2rem;
+  margin: 2rem 0 3rem;
+}
+
+.confirmation-content button {
+  background: white;
+  color: #7b4836;
+  padding: 2rem 4rem;
+  font-size: 2rem;
+  border-radius: 20px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
