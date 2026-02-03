@@ -482,8 +482,11 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
     e.preventDefault()
 
     // Validate fields
-    if (!newSize.name || !newSize.price) {
-      showNotification('Nom et prix sont requis', 'error')
+    const trimmedName = newSize.name.trim()
+    const priceValue = parseFloat(newSize.price)
+
+    if (!trimmedName || !newSize.price || isNaN(priceValue) || priceValue <= 0) {
+      showNotification('Nom et prix valides sont requis', 'error')
       return
     }
 
@@ -492,8 +495,8 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newSize.name.trim(),
-          price: parseFloat(newSize.price),
+          name: trimmedName,
+          price: priceValue,
           display_order: newSize.display_order || 0
         })
       })
