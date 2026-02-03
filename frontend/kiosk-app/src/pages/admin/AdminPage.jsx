@@ -485,7 +485,7 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
     const trimmedName = newSize.name.trim()
     const priceValue = parseFloat(newSize.price)
 
-    if (!trimmedName || !newSize.price || isNaN(priceValue) || priceValue <= 0) {
+    if (!trimmedName || newSize.price === '' || isNaN(priceValue) || priceValue < 0) {
       showNotification('Nom et prix valides sont requis', 'error')
       return
     }
