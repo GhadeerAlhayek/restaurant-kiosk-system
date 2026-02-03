@@ -293,11 +293,11 @@ router.post('/:id/sizes', async (req, res) => {
       body: req.body
     });
 
-    if (!name || !price || price === '' || price === undefined) {
+    if (!name || price === null || price === undefined || price === '' || isNaN(price) || price < 0) {
       logger.warn('Validation failed:', { name, price });
       return res.status(400).json({
         success: false,
-        error: 'Name and price are required',
+        error: 'Name and valid price (>= 0) are required',
       });
     }
 
@@ -411,11 +411,11 @@ router.post('/:id/ingredients', upload.single('image'), async (req, res) => {
       file: req.file?.filename
     });
 
-    if (!name || !price || price === '' || price === undefined) {
+    if (!name || price === null || price === undefined || price === '' || isNaN(price) || price < 0) {
       logger.warn('Validation failed:', { name, price });
       return res.status(400).json({
         success: false,
-        error: 'Name and price are required',
+        error: 'Name and valid price (>= 0) are required',
       });
     }
 
