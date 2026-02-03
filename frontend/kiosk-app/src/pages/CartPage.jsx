@@ -1,7 +1,22 @@
+import { useState } from 'react'
 import './CartPage.css'
 
 function CartPage({ cart, onUpdateQuantity, onClear, onBack, onCheckout }) {
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+
+  const handleCheckoutClick = () => {
+    setShowConfirmation(true)
+  }
+
+  const handleConfirmOrder = () => {
+    setShowConfirmation(false)
+    onCheckout()
+  }
+
+  const handleCancelOrder = () => {
+    setShowConfirmation(false)
+  }
 
   return (
     <div className="cart-page">
@@ -97,13 +112,34 @@ function CartPage({ cart, onUpdateQuantity, onClear, onBack, onCheckout }) {
                 <span>TOTAL</span>
                 <span className="total-amount">{total.toFixed(2)}€</span>
               </div>
-              <button className="checkout-btn" onClick={onCheckout}>
+              <button className="checkout-btn" onClick={handleCheckoutClick}>
                 COMMANDER
               </button>
             </div>
           </>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <div className="confirmation-overlay" onClick={handleCancelOrder}>
+          <div className="confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Confirmer votre commande?</h2>
+            <div className="confirmation-total">
+              <span>Total:</span>
+              <span className="confirmation-amount">{total.toFixed(2)}€</span>
+            </div>
+            <div className="confirmation-buttons">
+              <button className="cancel-btn" onClick={handleCancelOrder}>
+                Annuler
+              </button>
+              <button className="confirm-btn" onClick={handleConfirmOrder}>
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
