@@ -3,15 +3,20 @@ const router = express.Router();
 const { query, queryOne, run, db } = require('../config/database');
 const logger = require('../utils/logger');
 
-function generateOrderNumber() {
+async function generateOrderNumber() {
   const date = new Date();
-  const year = date.getFullYear().toString().slice(-2);
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const random = Math.floor(Math.random() * 1000).toString().padStart(4, '0');
-  return `${year}${month}${day}-${hours}${minutes}${random}`;
+  const today = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+  // Get count of orders created today
+  const result = await queryOne(
+    `SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = DATE(?)`,
+    [today]
+  );
+
+  const orderCount = (result?.count || 0) + 1;
+
+  // Simple format: just the order number (1, 2, 3, etc.)
+  return orderCount.toString();
 }
 
 router.post('/', async (req, res) => {
@@ -21,7 +26,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'device_id and items required' });
     }
 
-    const orderNumber = generateOrderNumber();
+    const orderNumber = await generateOrderNumber();
 
     // Separate regular items and build-your-own items
     const regularItems = items.filter(item => item.menu_item_id);
