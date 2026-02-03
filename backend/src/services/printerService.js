@@ -61,15 +61,8 @@ class PrinterService {
 
       printer.clear();
 
-      // Header
-      printer.alignCenter();
-      printer.setTextSize(1, 1);
-      printer.bold(true);
-      printer.println('PIZZA AU FEU DE BOIS');
-      printer.bold(false);
-      printer.println('');
-
       // Order number (large and prominent)
+      printer.alignCenter();
       printer.setTextSize(2, 2);
       printer.bold(true);
       printer.println(`N° ${order.order_number}`);

@@ -111,7 +111,7 @@ After=network.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/restaurant-kiosk-system/backend
+WorkingDirectory=/home/ahmad/restaurant-kiosk-system/backend
 ExecStart=/usr/bin/npm start
 Restart=always
 RestartSec=10
