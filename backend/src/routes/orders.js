@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query, queryOne, run, db } = require('../config/database');
 const logger = require('../utils/logger');
+const printerService = require('../services/printerService');
 
 async function generateOrderNumber() {
   const date = new Date();
@@ -137,6 +138,19 @@ router.post('/', async (req, res) => {
 
     const order = await queryOne('SELECT * FROM orders WHERE id = ?', [orderId]);
     const completeOrder = { ...order, items: orderItems };
+
+    // Print receipt for customer (non-blocking)
+    printerService.printReceipt(device_id, completeOrder)
+      .then(result => {
+        if (result.success) {
+          logger.info(`Receipt printed for order ${orderNumber} on ${device_id}`);
+        } else {
+          logger.error(`Failed to print receipt for order ${orderNumber}:`, result.error);
+        }
+      })
+      .catch(err => {
+        logger.error(`Error printing receipt for order ${orderNumber}:`, err);
+      });
 
     const io = req.app.get('io');
     io.to('kitchen').to('admin').emit('order:new', completeOrder);
