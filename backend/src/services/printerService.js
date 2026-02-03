@@ -7,23 +7,24 @@ const logger = require('../utils/logger');
 class PrinterService {
   constructor() {
     this.printers = new Map();
-    this.printerNames = {
-      'kiosk-1': process.env.PRINTER_KIOSK_1 || 'kiosk1-printer',
-      'kiosk-2': process.env.PRINTER_KIOSK_2 || 'kiosk2-printer',
+    // Use device paths for USB printers instead of CUPS names
+    this.printerPaths = {
+      'kiosk-1': process.env.PRINTER_KIOSK_1 || '/dev/usb/lp0',
+      'kiosk-2': process.env.PRINTER_KIOSK_2 || '/dev/usb/lp1',
     };
   }
 
   // Initialize printer for specific device
   async initializePrinter(deviceId) {
     try {
-      const printerName = this.printerNames[deviceId];
-      if (!printerName) {
+      const printerPath = this.printerPaths[deviceId];
+      if (!printerPath) {
         throw new Error(`No printer configured for device: ${deviceId}`);
       }
 
       const printer = new ThermalPrinter({
         type: PrinterTypes.EPSON,
-        interface: `printer:${printerName}`,
+        interface: printerPath,
         characterSet: 'PC858_EURO',
         removeSpecialCharacters: false,
         lineCharacter: '=',
@@ -33,9 +34,9 @@ class PrinterService {
       });
 
       this.printers.set(deviceId, printer);
-      logger.info(`Printer initialized for ${deviceId}: ${printerName}`);
+      logger.info(`Printer initialized for ${deviceId}: ${printerPath}`);
 
-      return { success: true, deviceId, printerName };
+      return { success: true, deviceId, printerPath };
     } catch (error) {
       logger.error(`Failed to initialize printer for ${deviceId}:`, error);
       return { success: false, error: error.message };
