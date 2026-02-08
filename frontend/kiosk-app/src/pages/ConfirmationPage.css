@@ -60,3 +60,83 @@
   border-radius: 20px;
   box-shadow: 0 8px 16px rgba(0,0,0,0.2);
 }
+
+/* ===== RESPONSIVE DESIGN - MOBILE ===== */
+
+/* Tablets and below (< 1024px) */
+@media (max-width: 1024px) {
+  .confirmation-content h1 {
+    font-size: 2.5rem;
+  }
+
+  .order-number h2 {
+    font-size: 4rem;
+  }
+
+  .confirmation-content button {
+    padding: 1.5rem 3rem;
+    font-size: 1.5rem;
+  }
+}
+
+/* Mobile devices (< 768px) */
+@media (max-width: 768px) {
+  .confirmation-content {
+    padding: 2rem;
+  }
+
+  .success-icon {
+    font-size: 4rem;
+    width: 100px;
+    height: 100px;
+  }
+
+  .confirmation-content h1 {
+    font-size: 1.8rem;
+  }
+
+  .order-number p {
+    font-size: 1rem;
+  }
+
+  .order-number h2 {
+    font-size: 3rem;
+  }
+
+  .thank-you {
+    font-size: 1rem;
+  }
+
+  .confirmation-content button {
+    padding: 1.2rem 2.5rem;
+    font-size: 1.2rem;
+    width: 100%;
+    max-width: 400px;
+  }
+}
+
+/* Small phones (< 480px) */
+@media (max-width: 480px) {
+  .confirmation-content {
+    padding: 1.5rem;
+  }
+
+  .success-icon {
+    font-size: 3rem;
+    width: 80px;
+    height: 80px;
+  }
+
+  .confirmation-content h1 {
+    font-size: 1.5rem;
+  }
+
+  .order-number h2 {
+    font-size: 2.5rem;
+  }
+
+  .confirmation-content button {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+  }
+}
