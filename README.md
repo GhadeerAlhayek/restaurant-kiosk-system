@@ -142,6 +142,11 @@ sudo systemctl status kiosk-server
 curl http://kioskserver.local:3000/api/health
 ```
 
+**Restart service:**
+```bash
+sudo systemctl restart kiosk-server.service
+```
+
 ---
 
 ## Kiosk Pi Setup
