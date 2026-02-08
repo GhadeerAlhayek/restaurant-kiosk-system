@@ -129,11 +129,15 @@ function CartPage({ cart, onUpdateQuantity, onClear, onBack, onCheckout }) {
               <span>Total:</span>
               <span className="confirmation-amount">{total.toFixed(2)}€</span>
             </div>
+
             <div className="confirmation-buttons">
               <button className="cancel-btn" onClick={handleCancelOrder}>
                 Annuler
               </button>
-              <button className="confirm-btn" onClick={handleConfirmOrder}>
+              <button
+                className="confirm-btn"
+                onClick={handleConfirmOrder}
+              >
                 Confirmer
               </button>
             </div>

@@ -32,10 +32,17 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
   const [selectedIngredients, setSelectedIngredients] = useState([])
 
   // Build-your-own state
-  const [buildYourOwnStep, setBuildYourOwnStep] = useState('size') // 'size' or 'ingredients' or 'confirm'
+  const [buildYourOwnStep, setBuildYourOwnStep] = useState('size') // 'size', 'meat', 'sauces', or 'confirm'
   const [buildYourOwnSize, setBuildYourOwnSize] = useState(null)
-  const [buildYourOwnIngredients, setBuildYourOwnIngredients] = useState([])
+  const [buildYourOwnMeats, setBuildYourOwnMeats] = useState([])
+  const [buildYourOwnSauces, setBuildYourOwnSauces] = useState([])
   const [buildYourOwnName, setBuildYourOwnName] = useState('')
+
+  // Extras state
+  const [showExtrasModal, setShowExtrasModal] = useState(false)
+  const [selectedExtras, setSelectedExtras] = useState([])
+  const [extrasItems, setExtrasItems] = useState([])
+  const [pendingMainItem, setPendingMainItem] = useState(null) // Store main item before showing extras
 
   useEffect(() => {
     fetchData()
@@ -75,8 +82,10 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
   const currentCategory = categories.find(c => c.id === selectedCategoryId)
   const isPizzaCategory = currentCategory?.name === 'pizza'
 
-  // Filter menu based on category and base type
+  // Filter menu based on category and base type (exclude extras)
   const filteredMenu = menu.filter(item => {
+    // Exclude items marked as extras (they only appear in extras page)
+    if (item.is_extra) return false
     // First filter by category
     if (item.category_id !== selectedCategoryId) return false
     // Then filter by base type (only for pizza category)
@@ -101,7 +110,7 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     setShowModal(true)
   }
 
-  const handleAddToCart = () => {
+  const handleContinueToExtras = () => {
     // Calculate total price with customizations
     let finalPrice = selectedItem.price
     if (currentCategory?.is_customizable) {
@@ -113,7 +122,8 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
       }
     }
 
-    onAddToCart({
+    // Store main item and show extras modal
+    setPendingMainItem({
       ...selectedItem,
       price: finalPrice,
       originalPrice: selectedItem.price,
@@ -123,11 +133,86 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
         ingredients: selectedIngredients
       } : null
     })
+
+    // Get extras items (only items marked as extras)
+    const extras = menu.filter(item => item.is_extra)
+    setExtrasItems(extras)
+
     setShowModal(false)
+    setShowExtrasModal(true)
+  }
+
+  const handleAddToCartWithExtras = () => {
+    // Add main item
+    if (pendingMainItem) {
+      onAddToCart(pendingMainItem)
+    }
+
+    // Add selected extras
+    selectedExtras.forEach(extra => {
+      onAddToCart({
+        ...extra,
+        quantity: extra.quantity || 1
+      })
+    })
+
+    // Reset state
+    setShowExtrasModal(false)
+    setSelectedExtras([])
+    setPendingMainItem(null)
     setSelectedItem(null)
     setInstructions('')
     setSelectedSize(null)
     setSelectedIngredients([])
+  }
+
+  const handleSkipExtras = () => {
+    // Add only main item, skip extras
+    if (pendingMainItem) {
+      onAddToCart(pendingMainItem)
+    }
+
+    // Reset state
+    setShowExtrasModal(false)
+    setSelectedExtras([])
+    setPendingMainItem(null)
+    setSelectedItem(null)
+    setInstructions('')
+    setSelectedSize(null)
+    setSelectedIngredients([])
+  }
+
+  const handleBuildYourOwnContinueToExtras = () => {
+    // Build the item from build-your-own selections
+    const allIngredients = [...buildYourOwnMeats, ...buildYourOwnSauces]
+    const totalPrice = (buildYourOwnSize?.price || 0) + allIngredients.reduce((sum, i) => sum + i.price, 0)
+
+    // Store the build-your-own item
+    setPendingMainItem({
+      id: `build-${Date.now()}`,
+      name: buildYourOwnName.trim() || `${currentCategory.display_name} personnalisé`,
+      price: totalPrice,
+      instructions: instructions.trim() || null,
+      build_your_own: {
+        size: buildYourOwnSize,
+        ingredients: allIngredients
+      }
+    })
+
+    // Get extras items
+    const extras = menu.filter(item => item.is_extra)
+    setExtrasItems(extras)
+
+    // Reset build-your-own state
+    setBuildYourOwnStep('size')
+    setBuildYourOwnSize(null)
+    setBuildYourOwnMeats([])
+    setBuildYourOwnSauces([])
+    setBuildYourOwnName('')
+    setInstructions('')
+
+    // Show extras modal
+    setShowExtrasModal(true)
   }
 
   const handleCategoryChange = (categoryId) => {
@@ -136,7 +221,8 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     // Reset build-your-own state
     setBuildYourOwnStep('size')
     setBuildYourOwnSize(null)
-    setBuildYourOwnIngredients([])
+    setBuildYourOwnMeats([])
+    setBuildYourOwnSauces([])
     setBuildYourOwnName('')
   }
 
@@ -239,7 +325,7 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                           className="size-card"
                           onClick={() => {
                             setBuildYourOwnSize(size)
-                            setBuildYourOwnStep('ingredients')
+                            setBuildYourOwnStep('meat')
                           }}
                         >
                           <div className="size-name">{size.name}</div>
@@ -253,32 +339,88 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                 </>
               )}
 
-              {buildYourOwnStep === 'ingredients' && (
+              {buildYourOwnStep === 'meat' && (
                 <>
                   <div className="builder-header">
                     <button className="back-step-btn" onClick={() => {
                       setBuildYourOwnStep('size')
                       setBuildYourOwnSize(null)
+                      setBuildYourOwnMeats([])
                     }}>
                       ← Retour aux tailles
                     </button>
-                    <h3>Choisissez vos ingrédients</h3>
+                    <h3>Choisissez votre viande (max {buildYourOwnSize?.name === 'M' ? '1' : '2'})</h3>
+                    <button
+                      className="continue-btn"
+                      onClick={() => setBuildYourOwnStep('sauces')}
+                      disabled={buildYourOwnMeats.length === 0}
+                    >
+                      Continuer →
+                    </button>
+                  </div>
+                  {currentCategory.ingredients && currentCategory.ingredients.filter(i => i.type === 'meat').length > 0 ? (
+                    currentCategory.ingredients.filter(i => i.type === 'meat').map(ingredient => {
+                      const isSelected = buildYourOwnMeats.some(i => i.id === ingredient.id)
+                      const maxMeats = buildYourOwnSize?.name === 'M' ? 1 : 2
+                      const canSelect = isSelected || buildYourOwnMeats.length < maxMeats
+                      return (
+                        <div
+                          key={ingredient.id}
+                          className={`pizza-grid-item ${isSelected ? 'selected' : ''} ${!canSelect ? 'disabled' : ''}`}
+                          onClick={() => {
+                            if (!canSelect) return
+                            if (isSelected) {
+                              setBuildYourOwnMeats(buildYourOwnMeats.filter(i => i.id !== ingredient.id))
+                            } else {
+                              setBuildYourOwnMeats([...buildYourOwnMeats, ingredient])
+                            }
+                          }}
+                        >
+                          {isSelected && <div className="selection-checkmark">✓</div>}
+                          <div className="pizza-grid-image-container">
+                            <img
+                              className="pizza-grid-image"
+                              src={ingredient.image_url ? `/api/images/${ingredient.image_url}` : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect fill="%23f0f0f0" width="200" height="200"/><text x="50%" y="50%" fill="%23999" font-size="48" text-anchor="middle">🥩</text></svg>'}
+                              alt={ingredient.name}
+                            />
+                          </div>
+                          <div className="pizza-grid-name">{ingredient.name}</div>
+                          <div className="pizza-grid-price">+{ingredient.price.toFixed(2)}€</div>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="empty-message">Aucune viande disponible</div>
+                  )}
+                </>
+              )}
+
+              {buildYourOwnStep === 'sauces' && (
+                <>
+                  <div className="builder-header">
+                    <button className="back-step-btn" onClick={() => {
+                      setBuildYourOwnStep('meat')
+                      setBuildYourOwnSauces([])
+                    }}>
+                      ← Retour aux viandes
+                    </button>
+                    <h3>Choisissez vos sauces et autres ingrédients</h3>
                     <button className="continue-btn" onClick={() => setBuildYourOwnStep('confirm')}>
                       Continuer →
                     </button>
                   </div>
-                  {currentCategory.ingredients && currentCategory.ingredients.length > 0 ? (
-                    currentCategory.ingredients.map(ingredient => {
-                      const isSelected = buildYourOwnIngredients.some(i => i.id === ingredient.id)
+                  {currentCategory.ingredients && currentCategory.ingredients.filter(i => i.type !== 'meat').length > 0 ? (
+                    currentCategory.ingredients.filter(i => i.type !== 'meat').map(ingredient => {
+                      const isSelected = buildYourOwnSauces.some(i => i.id === ingredient.id)
                       return (
                         <div
                           key={ingredient.id}
                           className={`pizza-grid-item ${isSelected ? 'selected' : ''}`}
                           onClick={() => {
                             if (isSelected) {
-                              setBuildYourOwnIngredients(buildYourOwnIngredients.filter(i => i.id !== ingredient.id))
+                              setBuildYourOwnSauces(buildYourOwnSauces.filter(i => i.id !== ingredient.id))
                             } else {
-                              setBuildYourOwnIngredients([...buildYourOwnIngredients, ingredient])
+                              setBuildYourOwnSauces([...buildYourOwnSauces, ingredient])
                             }
                           }}
                         >
@@ -330,9 +472,9 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
 
       {/* Build-your-own confirmation modal */}
       {currentCategory?.is_build_your_own && buildYourOwnStep === 'confirm' && (
-        <div className="modal-overlay" onClick={() => setBuildYourOwnStep('ingredients')}>
+        <div className="modal-overlay" onClick={() => setBuildYourOwnStep('sauces')}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setBuildYourOwnStep('ingredients')}>×</button>
+            <button className="modal-close" onClick={() => setBuildYourOwnStep('sauces')}>×</button>
 
             <div className="modal-pizza-info">
               <h2 className="modal-pizza-name">Votre {currentCategory.display_name}</h2>
@@ -359,11 +501,23 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                     <span>{buildYourOwnSize.name} (+{buildYourOwnSize.price.toFixed(2)}€)</span>
                   </div>
                 )}
-                {buildYourOwnIngredients.length > 0 && (
+                {buildYourOwnMeats.length > 0 && (
                   <div className="summary-item">
-                    <span className="summary-label">Ingrédients:</span>
+                    <span className="summary-label">Viandes:</span>
                     <div className="ingredients-list">
-                      {buildYourOwnIngredients.map((ing, idx) => (
+                      {buildYourOwnMeats.map((ing, idx) => (
+                        <span key={idx} className="ingredient-badge">
+                          {ing.name} (+{ing.price.toFixed(2)}€)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {buildYourOwnSauces.length > 0 && (
+                  <div className="summary-item">
+                    <span className="summary-label">Sauces & Ingrédients:</span>
+                    <div className="ingredients-list">
+                      {buildYourOwnSauces.map((ing, idx) => (
                         <span key={idx} className="ingredient-badge">
                           {ing.name} (+{ing.price.toFixed(2)}€)
                         </span>
@@ -381,17 +535,24 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                     <span>{buildYourOwnSize.price.toFixed(2)}€</span>
                   </div>
                 )}
-                {buildYourOwnIngredients.length > 0 && (
+                {buildYourOwnMeats.length > 0 && (
                   <div className="price-line">
-                    <span>Ingrédients ({buildYourOwnIngredients.length}):</span>
-                    <span>+{buildYourOwnIngredients.reduce((sum, i) => sum + i.price, 0).toFixed(2)}€</span>
+                    <span>Viandes ({buildYourOwnMeats.length}):</span>
+                    <span>+{buildYourOwnMeats.reduce((sum, i) => sum + i.price, 0).toFixed(2)}€</span>
+                  </div>
+                )}
+                {buildYourOwnSauces.length > 0 && (
+                  <div className="price-line">
+                    <span>Sauces & Ingrédients ({buildYourOwnSauces.length}):</span>
+                    <span>+{buildYourOwnSauces.reduce((sum, i) => sum + i.price, 0).toFixed(2)}€</span>
                   </div>
                 )}
                 <div className="price-line total">
                   <span>Total:</span>
                   <span>{(
                     (buildYourOwnSize?.price || 0) +
-                    buildYourOwnIngredients.reduce((sum, i) => sum + i.price, 0)
+                    buildYourOwnMeats.reduce((sum, i) => sum + i.price, 0) +
+                    buildYourOwnSauces.reduce((sum, i) => sum + i.price, 0)
                   ).toFixed(2)}€</span>
                 </div>
               </div>
@@ -410,28 +571,10 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
 
               <button
                 className="modal-add-btn"
-                onClick={() => {
-                  const totalPrice = (buildYourOwnSize?.price || 0) + buildYourOwnIngredients.reduce((sum, i) => sum + i.price, 0)
-                  onAddToCart({
-                    id: `build-${Date.now()}`,
-                    name: buildYourOwnName.trim() || `${currentCategory.display_name} personnalisé`,
-                    price: totalPrice,
-                    instructions: instructions.trim() || null,
-                    build_your_own: {
-                      size: buildYourOwnSize,
-                      ingredients: buildYourOwnIngredients
-                    }
-                  })
-                  // Reset state
-                  setBuildYourOwnStep('size')
-                  setBuildYourOwnSize(null)
-                  setBuildYourOwnIngredients([])
-                  setBuildYourOwnName('')
-                  setInstructions('')
-                }}
-                disabled={!buildYourOwnSize}
+                onClick={handleBuildYourOwnContinueToExtras}
+                disabled={!buildYourOwnSize || buildYourOwnMeats.length === 0}
               >
-                Ajouter au panier
+                Continuer
               </button>
             </div>
           </div>
@@ -465,7 +608,7 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                   {/* Size selection */}
                   {currentCategory.sizes && currentCategory.sizes.length > 0 && (
                     <div className="customization-group">
-                      <h3 className="customization-title">Taille <span className="required">*</span></h3>
+                      <h3 className="customization-title">Pain <span className="required">*</span></h3>
                       <div className="size-options">
                         {currentCategory.sizes.map(size => (
                           <button
@@ -518,7 +661,7 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                     </div>
                     {selectedSize && (
                       <div className="price-line">
-                        <span>Taille ({selectedSize.name}):</span>
+                        <span>Pain ({selectedSize.name}):</span>
                         <span>+{selectedSize.price.toFixed(2)}€</span>
                       </div>
                     )}
@@ -554,11 +697,103 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
 
               <button
                 className="modal-add-btn"
-                onClick={handleAddToCart}
+                onClick={handleContinueToExtras}
                 disabled={currentCategory?.is_customizable && currentCategory.sizes?.length > 0 && !selectedSize}
               >
-                Ajouter au panier
+                Continuer
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extras Modal */}
+      {showExtrasModal && (
+        <div className="modal-overlay" onClick={handleSkipExtras}>
+          <div className="modal-content extras-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={handleSkipExtras}>×</button>
+
+            <div className="modal-pizza-info">
+              <h2 className="modal-pizza-name">Ajouter des suppléments?</h2>
+              <p className="extras-subtitle">Frites, desserts, boissons...</p>
+
+              <div className="extras-grid">
+                {extrasItems.map(item => {
+                  const selectedExtra = selectedExtras.find(e => e.id === item.id)
+                  const quantity = selectedExtra?.quantity || 0
+
+                  return (
+                    <div key={item.id} className="extra-item">
+                      <div className="extra-item-image-container">
+                        {item.image_url && (
+                          <img
+                            src={`/api/images/${item.image_url}`}
+                            alt={item.name}
+                            className="extra-item-image"
+                          />
+                        )}
+                      </div>
+                      <div className="extra-item-details">
+                        <h4 className="extra-item-name">{item.name}</h4>
+                        <p className="extra-item-price">{item.price.toFixed(2)}€</p>
+                      </div>
+                      <div className="extra-item-controls">
+                        {quantity === 0 ? (
+                          <button
+                            className="extra-add-btn"
+                            onClick={() => {
+                              setSelectedExtras([...selectedExtras, { ...item, quantity: 1 }])
+                            }}
+                          >
+                            Ajouter
+                          </button>
+                        ) : (
+                          <div className="extra-quantity-controls">
+                            <button
+                              className="extra-qty-btn"
+                              onClick={() => {
+                                if (quantity === 1) {
+                                  setSelectedExtras(selectedExtras.filter(e => e.id !== item.id))
+                                } else {
+                                  setSelectedExtras(
+                                    selectedExtras.map(e =>
+                                      e.id === item.id ? { ...e, quantity: e.quantity - 1 } : e
+                                    )
+                                  )
+                                }
+                              }}
+                            >
+                              −
+                            </button>
+                            <span className="extra-qty-display">{quantity}</span>
+                            <button
+                              className="extra-qty-btn"
+                              onClick={() => {
+                                setSelectedExtras(
+                                  selectedExtras.map(e =>
+                                    e.id === item.id ? { ...e, quantity: e.quantity + 1 } : e
+                                  )
+                                )
+                              }}
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="extras-footer">
+                <button className="skip-extras-btn" onClick={handleSkipExtras}>
+                  Non merci
+                </button>
+                <button className="add-with-extras-btn" onClick={handleAddToCartWithExtras}>
+                  Ajouter au panier {selectedExtras.length > 0 && `(+${selectedExtras.length})`}
+                </button>
+              </div>
             </div>
           </div>
         </div>

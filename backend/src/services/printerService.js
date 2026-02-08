@@ -76,6 +76,11 @@ class PrinterService {
       printer.println(`Date: ${orderDate.toLocaleDateString('fr-FR')}`);
       printer.println(`Heure: ${orderDate.toLocaleTimeString('fr-FR')}`);
       printer.println(`Caisse: ${deviceId}`);
+
+      // Order type
+      const orderTypeLabel = order.order_type === 'takeaway' ? 'A emporter' : 'Sur place';
+      printer.println(`Type: ${orderTypeLabel}`);
+
       printer.drawLine();
 
       // Items

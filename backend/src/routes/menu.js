@@ -126,7 +126,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/menu - Create new menu item
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, description, base_type, price, ingredients, is_available, category_id, display_order } = req.body;
+    const { name, description, base_type, price, ingredients, is_available, is_extra, category_id, display_order } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({
@@ -142,8 +142,8 @@ router.post('/', upload.single('image'), async (req, res) => {
     const parsedCategoryId = category_id && category_id !== '' ? parseInt(category_id) : null;
 
     const result = await run(
-      `INSERT INTO menu_items (name, description, base_type, price, image_url, ingredients, is_available, category_id, display_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO menu_items (name, description, base_type, price, image_url, ingredients, is_available, is_extra, category_id, display_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
         description || '',
@@ -152,6 +152,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         image_url,
         ingredientsJson,
         is_available !== 'false' ? 1 : 0,
+        is_extra === 'true' || is_extra === true ? 1 : 0,
         parsedCategoryId,
         display_order ? parseInt(display_order) : 0
       ]
@@ -180,7 +181,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, base_type, price, ingredients, is_available, category_id, display_order } = req.body;
+    const { name, description, base_type, price, ingredients, is_available, is_extra, category_id, display_order } = req.body;
 
     const existing = await queryOne('SELECT * FROM menu_items WHERE id = ?', [id]);
     if (!existing) {
@@ -218,6 +219,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         image_url = ?,
         ingredients = ?,
         is_available = COALESCE(?, is_available),
+        is_extra = COALESCE(?, is_extra),
         category_id = ?,
         display_order = COALESCE(?, display_order)
        WHERE id = ?`,
@@ -229,6 +231,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         image_url,
         ingredientsJson,
         is_available !== undefined ? (is_available === 'true' || is_available === true ? 1 : 0) : null,
+        is_extra !== undefined ? (is_extra === 'true' || is_extra === true ? 1 : 0) : null,
         parsedCategoryId !== null ? parsedCategoryId : existing.category_id,
         display_order ? parseInt(display_order) : null,
         id

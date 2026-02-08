@@ -22,11 +22,12 @@ async function generateOrderNumber() {
 
 router.post('/', async (req, res) => {
   try {
-    const { device_id, items, notes } = req.body;
+    const { device_id, items, notes, order_type } = req.body;
     if (!device_id || !items || items.length === 0) {
       return res.status(400).json({ success: false, error: 'device_id and items required' });
     }
 
+    const orderType = order_type || 'dine-in'; // Default to dine-in
     const orderNumber = await generateOrderNumber();
 
     // Separate regular items and build-your-own items
@@ -79,9 +80,9 @@ router.post('/', async (req, res) => {
     });
 
     const orderResult = await run(
-      `INSERT INTO orders (order_number, device_id, total_amount, notes, status)
-       VALUES (?, ?, ?, ?, 'pending')`,
-      [orderNumber, device_id, totalAmount, notes || null]
+      `INSERT INTO orders (order_number, device_id, total_amount, notes, status, order_type)
+       VALUES (?, ?, ?, ?, 'pending', ?)`,
+      [orderNumber, device_id, totalAmount, notes || null, orderType]
     );
 
     const orderId = orderResult.lastID;

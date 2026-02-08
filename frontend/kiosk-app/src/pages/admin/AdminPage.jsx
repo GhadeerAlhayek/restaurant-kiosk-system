@@ -472,7 +472,7 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
   const [sizes, setSizes] = useState(category.sizes || [])
   const [ingredients, setIngredients] = useState(category.ingredients || [])
   const [newSize, setNewSize] = useState({ name: '', price: '', display_order: 0 })
-  const [newIngredient, setNewIngredient] = useState({ name: '', price: '', display_order: 0 })
+  const [newIngredient, setNewIngredient] = useState({ name: '', price: '', display_order: 0, type: 'other' })
   const [editingSize, setEditingSize] = useState(null)
   const [editingIngredient, setEditingIngredient] = useState(null)
   const [sizeImageFile, setSizeImageFile] = useState(null)
@@ -569,6 +569,7 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
       formData.append('name', newIngredient.name.trim())
       formData.append('price', parseFloat(newIngredient.price))
       formData.append('display_order', newIngredient.display_order || 0)
+      formData.append('type', newIngredient.type || 'other')
       if (ingredientImageFile) {
         formData.append('image', ingredientImageFile)
       }
@@ -576,7 +577,8 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
       console.log('Sending ingredient data:', {
         name: newIngredient.name,
         price: newIngredient.price,
-        display_order: newIngredient.display_order
+        display_order: newIngredient.display_order,
+        type: newIngredient.type
       })
 
       const res = await fetch(`${API_URL}/categories/${category.id}/ingredients`, {
@@ -586,7 +588,7 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
       const data = await res.json()
       if (data.success) {
         setIngredients([...ingredients, data.data])
-        setNewIngredient({ name: '', price: '', display_order: 0 })
+        setNewIngredient({ name: '', price: '', display_order: 0, type: 'other' })
         setIngredientImageFile(null)
         showNotification('Ingrédient ajouté')
         onRefresh()
@@ -647,7 +649,7 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
         <div className="customization-sections">
           {/* Sizes Section */}
           <div className="customization-section">
-            <h4>Tailles</h4>
+            <h4>Pains</h4>
             <form onSubmit={addSize} className="inline-form">
               <input
                 type="text"
@@ -711,6 +713,17 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
                 onChange={e => setNewIngredient({...newIngredient, name: e.target.value})}
                 required
               />
+              <select
+                value={newIngredient.type}
+                onChange={e => setNewIngredient({...newIngredient, type: e.target.value})}
+                required
+              >
+                <option value="meat">🥩 Viande</option>
+                <option value="sauce">🍅 Sauce</option>
+                <option value="vegetable">🥬 Légume</option>
+                <option value="cheese">🧀 Fromage</option>
+                <option value="other">Autre</option>
+              </select>
               <input
                 type="number"
                 step="0.01"
@@ -737,6 +750,16 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
                         value={ingredient.name}
                         onChange={e => setIngredients(ingredients.map(i => i.id === ingredient.id ? {...i, name: e.target.value} : i))}
                       />
+                      <select
+                        value={ingredient.type || 'other'}
+                        onChange={e => setIngredients(ingredients.map(i => i.id === ingredient.id ? {...i, type: e.target.value} : i))}
+                      >
+                        <option value="meat">🥩 Viande</option>
+                        <option value="sauce">🍅 Sauce</option>
+                        <option value="vegetable">🥬 Légume</option>
+                        <option value="cheese">🧀 Fromage</option>
+                        <option value="other">Autre</option>
+                      </select>
                       <input
                         type="number"
                         step="0.01"
@@ -749,6 +772,12 @@ function CustomizationManager({ category, onClose, onRefresh, showNotification }
                   ) : (
                     <>
                       <span className="item-name">{ingredient.name}</span>
+                      <span className="item-type">
+                        {ingredient.type === 'meat' ? '🥩' :
+                         ingredient.type === 'sauce' ? '🍅' :
+                         ingredient.type === 'vegetable' ? '🥬' :
+                         ingredient.type === 'cheese' ? '🧀' : ''}
+                      </span>
                       <span className="item-price">{ingredient.price}€</span>
                       <button className="btn-edit btn-sm" onClick={() => setEditingIngredient(ingredient.id)}>Modifier</button>
                       <button className="btn-delete btn-sm" onClick={() => deleteIngredient(ingredient.id)}>Supprimer</button>
@@ -781,6 +810,7 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
     price: '',
     category_id: '',
     is_available: true,
+    is_extra: false,
     display_order: 0
   })
   const [imageFile, setImageFile] = useState(null)
@@ -810,6 +840,7 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
       price: '',
       category_id: selectedCategory || '',
       is_available: true,
+      is_extra: false,
       display_order: 0
     })
     setShowModal(true)
@@ -861,6 +892,7 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
       price: item.price,
       category_id: item.category_id || '',
       is_available: item.is_available,
+      is_extra: item.is_extra || false,
       display_order: item.display_order || 0
     })
     setImagePreview(item.image_url ? `${API_URL}/images/${item.image_url}` : null)
@@ -1069,6 +1101,12 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
                   <label>
                     <input type="checkbox" checked={formData.is_available} onChange={e => setFormData({...formData, is_available: e.target.checked})} />
                     Disponible
+                  </label>
+                </div>
+                <div className="form-group checkbox">
+                  <label>
+                    <input type="checkbox" checked={formData.is_extra} onChange={e => setFormData({...formData, is_extra: e.target.checked})} />
+                    Supplément (apparaît dans la page suppléments)
                   </label>
                 </div>
               </div>

@@ -403,7 +403,7 @@ router.delete('/:id/sizes/:sizeId', async (req, res) => {
 router.post('/:id/ingredients', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, price, display_order } = req.body;
+    const { name, price, display_order, type } = req.body;
 
     logger.info('POST /api/categories/:id/ingredients - Request:', {
       categoryId: id,
@@ -428,11 +428,12 @@ router.post('/:id/ingredients', upload.single('image'), async (req, res) => {
     }
 
     const imageUrl = req.file ? req.file.filename : null;
+    const ingredientType = type || 'other';
 
     const result = await run(
-      `INSERT INTO category_ingredients (category_id, name, price, display_order, image_url)
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, name, price, display_order || 0, imageUrl]
+      `INSERT INTO category_ingredients (category_id, name, price, display_order, image_url, type)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, name, price, display_order || 0, imageUrl, ingredientType]
     );
 
     const newIngredient = await queryOne('SELECT * FROM category_ingredients WHERE id = ?', [result.lastID]);
@@ -454,7 +455,7 @@ router.post('/:id/ingredients', upload.single('image'), async (req, res) => {
 router.put('/:id/ingredients/:ingredientId', upload.single('image'), async (req, res) => {
   try {
     const { ingredientId } = req.params;
-    const { name, price, display_order, is_active } = req.body;
+    const { name, price, display_order, is_active, type } = req.body;
 
     const existing = await queryOne('SELECT * FROM category_ingredients WHERE id = ?', [ingredientId]);
     if (!existing) {
@@ -472,9 +473,10 @@ router.put('/:id/ingredients/:ingredientId', upload.single('image'), async (req,
         price = COALESCE(?, price),
         display_order = COALESCE(?, display_order),
         is_active = COALESCE(?, is_active),
-        image_url = COALESCE(?, image_url)
+        image_url = COALESCE(?, image_url),
+        type = COALESCE(?, type)
        WHERE id = ?`,
-      [name, price, display_order, is_active !== undefined ? (is_active ? 1 : 0) : null, imageUrl, ingredientId]
+      [name, price, display_order, is_active !== undefined ? (is_active ? 1 : 0) : null, imageUrl, type, ingredientId]
     );
 
     const updated = await queryOne('SELECT * FROM category_ingredients WHERE id = ?', [ingredientId]);

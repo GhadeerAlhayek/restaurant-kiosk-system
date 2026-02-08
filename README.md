@@ -1,14 +1,15 @@
 # Restaurant Kiosk System
 
-Self-service restaurant kiosk system for Raspberry Pi with customizable menu, admin panel, and kitchen display.
+Self-service restaurant kiosk system for Raspberry Pi with customizable menu, admin panel, kitchen display, and thermal receipt printing.
 
 ## Features
 
 - **Customer Kiosk**: Touchscreen ordering with build-your-own options (pizzas, sandwiches, tacos)
-- **Admin Panel**: Menu management, category configuration, order tracking
+- **Thermal Receipt Printing**: Automatic receipt printing with order number when customer completes order
+- **Admin Panel**: Menu management, category configuration, order tracking, payment confirmation
 - **Kitchen Display**: Real-time order updates via WebSocket
 - **Zero-Config Networking**: Auto-discovery using mDNS (no IP configuration needed)
-- **Multi-Device**: One server + multiple kiosk terminals
+- **Simple Order Numbers**: Sequential daily numbers (1, 2, 3...)
 
 ## Architecture
 
@@ -16,93 +17,101 @@ Self-service restaurant kiosk system for Raspberry Pi with customizable menu, ad
 Server Pi (kioskserver.local:3000)
 ├── Backend (Node.js + Express + SQLite)
 ├── Frontend (React - served as static files)
-└── WebSocket (Socket.io for real-time updates)
+├── WebSocket (Socket.io for real-time updates)
+└── Thermal Printer (USB)
 
 Kiosk Pis
 └── Chromium Browser → http://kioskserver.local:3000
 ```
 
-**Key Benefits:**
-- Works on any network without configuration
-- Deploy anywhere - server advertises itself via mDNS
-- Pre-built frontend included (no build step on Pi)
-- Single update point (Server Pi only)
-
 ## Tech Stack
 
-- **Backend**: Node.js, Express, SQLite, Socket.io, Multer
+- **Backend**: Node.js, Express, SQLite, Socket.io, Multer, node-thermal-printer
 - **Frontend**: React, Vite, CSS3
-- **Deployment**: Raspberry Pi 4, Chromium kiosk mode, Systemd
+- **Deployment**: Raspberry Pi 4, Chromium kiosk mode, Systemd, CUPS
 
 ---
 
-## Getting Started
+## Raspberry Pi Server Setup
 
-### 1. Push to GitHub (First Time)
-
-```bash
-
-# Initialize git
-git init
-git add .
-git commit -m "Initial commit"
-
-# Create PRIVATE repository on GitHub, then:
-git remote add origin git@github.com:YOUR_USERNAME/restaurant-kiosk-system.git
-git branch -M main
-git push -u origin main
-```
-
-### 2. Clone on Raspberry Pi (Private Repo)
-
-**Setup SSH Key:**
-```bash
-# On the Pi
-ssh-keygen -t ed25519 -C "your_email@example.com"
-cat ~/.ssh/id_ed25519.pub  # Copy this
-
-# Add to GitHub → Settings → SSH and GPG keys → New SSH key
-```
-
-**Clone:**
-```bash
-cd ~
-git clone git@github.com:YOUR_USERNAME/restaurant-kiosk-system.git
-cd restaurant-kiosk-system
-```
-
----
-
-## Raspberry Pi Deployment
-
-### Hardware Requirements
-- **Server Pi**: Raspberry Pi 4 (4GB+ RAM)
-- **Kiosk Pis**: Raspberry Pi 4 (2GB+ RAM each)
-- MicroSD cards (32GB+), touchscreen displays, local network
-
-### Server Pi Setup
+### 1. Install Node.js
 
 ```bash
-# 1. Install Node.js
 sudo apt update && sudo apt upgrade -y
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt install -y nodejs
+```
 
-# 2. Set hostname for mDNS
+### 2. Set Hostname
+
+```bash
 sudo hostnamectl set-hostname kioskserver
+```
 
-# 3. Install dependencies
-cd ~/restaurant-kiosk-system/backend
+### 3. Clone Repository
+
+```bash
+cd ~
+git clone git@github.com:YOUR_USERNAME/restaurant-kiosk-system.git
+cd restaurant-kiosk-system/backend
 npm install
-
-# 4. Run migrations
 npm run migrate
+```
 
-# 5. Create systemd service
+### 4. Install Emoji Fonts (for proper emoji display)
+
+```bash
+sudo apt install fonts-noto-color-emoji -y
+```
+
+### 5. Setup Thermal Printer
+
+**Install CUPS and printer packages:**
+```bash
+sudo apt install cups printer-driver-escpos -y
+sudo usermod -a -G lpadmin ahmad
+```
+
+**Enable file device URIs:**
+```bash
+sudo nano /etc/cups/cups-files.conf
+```
+Add this line:
+```
+FileDevice Yes
+```
+
+**Restart CUPS:**
+```bash
+sudo systemctl restart cups
+```
+
+**Add USB thermal printer:**
+```bash
+# Find your printer device (usually /dev/usb/lp0)
+ls -l /dev/usb/lp*
+
+# Add printer to CUPS
+sudo lpadmin -p kiosk-printer -E -v file:///dev/usb/lp0 -m raw
+```
+
+**Configure printer environment variable:**
+```bash
+cd ~/restaurant-kiosk-system/backend
+nano .env
+```
+Add:
+```
+PRINTER_KIOSK_1=/dev/usb/lp0
+```
+
+### 6. Create Systemd Service
+
+```bash
 sudo nano /etc/systemd/system/kiosk-server.service
 ```
 
-**Service file content:**
+**Service file:**
 ```ini
 [Unit]
 Description=Restaurant Kiosk Server
@@ -110,7 +119,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
+User=ahmad
 WorkingDirectory=/home/ahmad/restaurant-kiosk-system/backend
 ExecStart=/usr/bin/npm start
 Restart=always
@@ -120,33 +129,45 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-**Enable service:**
+**Enable and start:**
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable kiosk-server
 sudo systemctl start kiosk-server
+```
 
-# Test
+**Check status:**
+```bash
+sudo systemctl status kiosk-server
 curl http://kioskserver.local:3000/api/health
 ```
 
-### Kiosk Pi Setup
+---
+
+## Kiosk Pi Setup
+
+### 1. Install Chromium
 
 ```bash
-# 1. Install Chromium
 sudo apt update
-sudo apt install chromium-browser unclutter -y
+sudo apt install chromium unclutter fonts-noto-color-emoji -y
+```
 
-# 2. Setup auto-login
+### 2. Setup Auto-login
+
+```bash
 sudo raspi-config
 # Select: System Options → Boot/Auto Login → Desktop Autologin
+```
 
-# 3. Create kiosk startup script
+### 3. Create Kiosk Startup Script
+
+```bash
 mkdir -p ~/kiosk
 nano ~/kiosk/start-kiosk.sh
 ```
 
-**Startup script:**
+**Script content:**
 ```bash
 #!/bin/bash
 xset s off
@@ -157,7 +178,7 @@ unclutter -idle 0.5 -root &
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/Default/Preferences
 sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
 
-chromium-browser \
+chromium \
   --noerrdialogs \
   --disable-infobars \
   --kiosk \
@@ -166,10 +187,10 @@ chromium-browser \
   http://kioskserver.local:3000
 ```
 
-**Make executable and setup autostart:**
+### 4. Setup Autostart
+
 ```bash
 chmod +x ~/kiosk/start-kiosk.sh
-
 mkdir -p ~/.config/autostart
 nano ~/.config/autostart/kiosk.desktop
 ```
@@ -190,12 +211,7 @@ sudo reboot
 
 ---
 
-## Local Development
-
-### Prerequisites
-- Node.js 18+
-- npm
-- Git
+## Local Development (Mac)
 
 ### Setup
 
@@ -215,7 +231,97 @@ npm run dev  # Port 5173
 **Access:**
 - Kiosk: http://localhost:5173
 - Admin: http://localhost:5173/admin
-- API: http://localhost:3000/api
+
+---
+
+## Updating the Application
+
+### On Your Mac:
+
+**1. Make changes and rebuild frontend:**
+```bash
+cd frontend/kiosk-app
+npm run build
+```
+
+**2. Commit and push:**
+```bash
+git add .
+git commit -m "Your changes"
+git push
+```
+
+### On Server Pi:
+
+**Update and restart:**
+```bash
+cd ~/restaurant-kiosk-system
+git pull
+
+# If database migrations added:
+cd backend
+npm run migrate
+
+# Restart server
+sudo systemctl restart kiosk-server
+```
+
+**Kiosks auto-update** - they're just browsers pointing to the server.
+
+---
+
+## Printer Test
+
+Test the thermal printer:
+```bash
+curl -X POST http://kioskserver.local:3000/api/printer/test \
+  -H "Content-Type: application/json" \
+  -d '{"device_id": "kiosk-1"}'
+```
+
+---
+
+## Database Migrations
+
+When you need to modify the database schema:
+
+```bash
+cd backend/src/db/migrations
+nano 010_your_migration.sql  # Create new migration file
+cd ~/restaurant-kiosk-system/backend
+npm run migrate
+```
+
+---
+
+## Troubleshooting
+
+**Check server logs:**
+```bash
+sudo journalctl -u kiosk-server -f
+```
+
+**Restart server:**
+```bash
+sudo systemctl restart kiosk-server
+```
+
+**Check printer status:**
+```bash
+lpstat -p
+```
+
+**Test network connectivity:**
+```bash
+ping kioskserver.local
+```
+
+**Database reset (if needed):**
+```bash
+cd ~/restaurant-kiosk-system/backend
+rm data/*.db
+npm run migrate
+```
 
 ---
 
@@ -225,131 +331,19 @@ npm run dev  # Port 5173
 restaurant-kiosk-system/
 ├── backend/
 │   ├── src/
-│   │   ├── config/      # Database config
-│   │   ├── db/          # Migrations
-│   │   ├── routes/      # API endpoints
-│   │   └── server.js    # Main server
-│   └── data/            # SQLite database
+│   │   ├── config/         # Database config
+│   │   ├── db/migrations/  # SQL migrations
+│   │   ├── routes/         # API endpoints
+│   │   ├── services/       # Printer service
+│   │   └── server.js       # Main server
+│   └── data/               # SQLite database
 ├── frontend/kiosk-app/
 │   ├── src/
-│   │   ├── pages/       # React pages
+│   │   ├── pages/          # React pages
 │   │   └── KioskApp.jsx
-│   └── dist/            # Pre-built (included in repo)
-└── assets/              # Uploaded images
+│   └── dist/               # Production build
+└── assets/                 # Uploaded images
 ```
-
-## Key API Endpoints
-
-- `GET /api/categories` - Get categories
-- `POST /api/categories` - Create category
-- `POST /api/categories/:id/sizes` - Add size
-- `POST /api/categories/:id/ingredients` - Add ingredient (with image upload)
-- `GET /api/menu` - Get menu items
-- `POST /api/menu` - Create menu item
-- `GET /api/orders` - Get orders
-- `POST /api/orders` - Create order
-- `PATCH /api/orders/:id/status` - Update order status
-- `GET /api/health` - Health check
-
-## Troubleshooting
-
-**Server not starting:**
-```bash
-sudo journalctl -u kiosk-server -f
-sudo lsof -i :3000
-```
-
-**Kiosk can't connect:**
-```bash
-ping kioskserver.local
-curl http://kioskserver.local:3000/api/health
-```
-
-**Database reset:**
-```bash
-cd ~/restaurant-kiosk-system/backend
-rm data/*.db
-npm run migrate
-```
-
-## Updating the Application
-
-### When you make changes to the app:
-
-**⚠️ IMPORTANT: Always follow these steps in order**
-
-**1. Make your changes locally**
-```bash
-# Edit code, add features, fix bugs, etc.
-```
-
-**2. Rebuild the frontend (CRITICAL - DON'T SKIP!)**
-```bash
-cd frontend/kiosk-app
-npm run build
-```
-> **Why?** The dist/ folder must be updated with your changes. If you skip this, the Pi will run the old version!
-
-**3. Test your changes**
-```bash
-# Start backend
-cd backend
-npm run dev
-
-# In another terminal, verify the build works
-cd frontend/kiosk-app
-npm run preview  # Preview the production build
-```
-
-**4. Commit and push to GitHub**
-```bash
-cd /path/to/restaurant-kiosk-system
-git add .
-git commit -m "Describe your changes"
-git push
-```
-
-**5. Update Server Pi**
-```bash
-# SSH into Server Pi
-ssh pi@kioskserver
-
-# Pull latest changes
-cd ~/restaurant-kiosk-system
-git pull
-
-# If you added/changed backend dependencies:
-cd backend
-npm install
-
-# If you added database migrations:
-npm run migrate
-
-# Restart the server
-sudo systemctl restart kiosk-server
-```
-
-**6. Kiosks auto-update automatically**
-- Kiosks are browsers pointing to the server
-- They automatically load the new frontend
-- No action needed on Kiosk Pis!
-- (Optional: refresh browser with Ctrl+R or reboot)
-
-### Quick Update Checklist
-
-Before every git push, verify:
-- [ ] Made changes and tested locally
-- [ ] **Rebuilt frontend** (`npm run build`)
-- [ ] Tested the production build (`npm run preview`)
-- [ ] Committed all changes including dist/
-- [ ] Pushed to GitHub
-
-### Common Mistakes to Avoid
-
-❌ **Forgetting to rebuild frontend** - Your changes won't appear on the Pi!
-❌ Committing node_modules (already in .gitignore)
-❌ Committing .env files (already in .gitignore)
-❌ Committing database files (already in .gitignore)
 
 ## License
 
