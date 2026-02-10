@@ -251,7 +251,9 @@ function CategoriesPage({ categories, onRefresh, showNotification }) {
     display_order: 0,
     is_active: true,
     is_customizable: false,
-    is_build_your_own: false
+    is_build_your_own: false,
+    show_supplements: true,
+    customization_steps: []
   })
 
   const handleSubmit = async (e) => {
@@ -293,7 +295,9 @@ function CategoriesPage({ categories, onRefresh, showNotification }) {
       display_order: category.display_order,
       is_active: category.is_active,
       is_customizable: category.is_customizable || false,
-      is_build_your_own: category.is_build_your_own || false
+      is_build_your_own: category.is_build_your_own || false,
+      show_supplements: category.show_supplements !== undefined ? category.show_supplements : true,
+      customization_steps: category.customization_steps || []
     })
     setShowModal(true)
   }
@@ -322,7 +326,7 @@ function CategoriesPage({ categories, onRefresh, showNotification }) {
         <h2>Catégories</h2>
         <button className="btn-primary" onClick={() => {
           setEditingCategory(null)
-          setFormData({ name: '', display_name: '', icon: '', display_order: 0, is_active: true, is_customizable: false, is_build_your_own: false })
+          setFormData({ name: '', display_name: '', icon: '', display_order: 0, is_active: true, is_customizable: false, is_build_your_own: false, show_supplements: true, customization_steps: [] })
           setShowModal(true)
         }}>
           + Nouvelle Catégorie
@@ -447,6 +451,150 @@ function CategoriesPage({ categories, onRefresh, showNotification }) {
                   Composer soi-même (sandwich à créer)
                 </label>
               </div>
+              <div className="form-group checkbox">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.show_supplements}
+                    onChange={e => setFormData({...formData, show_supplements: e.target.checked})}
+                  />
+                  Afficher la page suppléments après sélection
+                </label>
+              </div>
+
+              {formData.is_build_your_own && (
+                <div className="customization-steps-section" style={{marginTop: '1rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px'}}>
+                  <h4>Étapes de personnalisation</h4>
+                  <p style={{fontSize: '0.9rem', color: '#666'}}>Définissez les étapes que le client suivra pour composer son article</p>
+
+                  {formData.customization_steps.map((step, index) => (
+                    <div key={index} style={{marginBottom: '1rem', padding: '1rem', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #ddd'}}>
+                      <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem'}}>
+                        <span style={{minWidth: '40px', fontWeight: 'bold', fontSize: '1.2rem', color: '#e04403'}}>#{index + 1}</span>
+                        <input
+                          type="text"
+                          value={step.title}
+                          onChange={e => {
+                            const newSteps = [...formData.customization_steps]
+                            newSteps[index].title = e.target.value
+                            setFormData({...formData, customization_steps: newSteps})
+                          }}
+                          placeholder="Titre de l'étape (ex: Choisissez votre sauce)"
+                          style={{flex: 1, padding: '0.75rem', fontSize: '1rem', border: '2px solid #ddd', borderRadius: '6px'}}
+                        />
+                        <select
+                          value={step.selection_mode || 'multiple'}
+                          onChange={e => {
+                            const newSteps = [...formData.customization_steps]
+                            newSteps[index].selection_mode = e.target.value
+                            setFormData({...formData, customization_steps: newSteps})
+                          }}
+                          style={{padding: '0.75rem', fontSize: '0.95rem', border: '2px solid #ddd', borderRadius: '6px', background: 'white', fontWeight: '600', minWidth: '140px'}}
+                        >
+                          <option value="single">Un seul</option>
+                          <option value="multiple">Multiple</option>
+                        </select>
+                        {step.selection_mode === 'multiple' && (
+                          <>
+                            <input
+                              type="number"
+                              value={step.min_selections || ''}
+                              onChange={e => {
+                                const newSteps = [...formData.customization_steps]
+                                newSteps[index].min_selections = e.target.value ? parseInt(e.target.value) : null
+                                setFormData({...formData, customization_steps: newSteps})
+                              }}
+                              placeholder="Min"
+                              style={{width: '70px', padding: '0.75rem 0.5rem', border: '2px solid #ddd', borderRadius: '6px', textAlign: 'center'}}
+                            />
+                            <input
+                              type="number"
+                              value={step.max_selections || ''}
+                              onChange={e => {
+                                const newSteps = [...formData.customization_steps]
+                                newSteps[index].max_selections = e.target.value ? parseInt(e.target.value) : null
+                                setFormData({...formData, customization_steps: newSteps})
+                              }}
+                              placeholder="Max"
+                              style={{width: '70px', padding: '0.75rem 0.5rem', border: '2px solid #ddd', borderRadius: '6px', textAlign: 'center'}}
+                            />
+                          </>
+                        )}
+                        <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'white', borderRadius: '6px', border: '2px solid #ddd', whiteSpace: 'nowrap'}}>
+                          <input
+                            type="checkbox"
+                            checked={step.required}
+                            onChange={e => {
+                              const newSteps = [...formData.customization_steps]
+                              newSteps[index].required = e.target.checked
+                              setFormData({...formData, customization_steps: newSteps})
+                            }}
+                          />
+                          <span style={{fontWeight: '600'}}>Requis</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newSteps = formData.customization_steps.filter((_, i) => i !== index)
+                            setFormData({...formData, customization_steps: newSteps})
+                          }}
+                          style={{padding: '0.75rem 1rem', background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem'}}
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div style={{marginTop: '0.75rem', padding: '0.75rem', background: 'white', borderRadius: '4px'}}>
+                        <div style={{fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.9rem'}}>Ingrédients disponibles dans cette étape:</div>
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto'}}>
+                          {editingCategory?.ingredients?.map(ing => (
+                            <label key={ing.id} style={{display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem', cursor: 'pointer'}}>
+                              <input
+                                type="checkbox"
+                                checked={(step.ingredient_ids || []).includes(ing.id)}
+                                onChange={e => {
+                                  const newSteps = [...formData.customization_steps]
+                                  const currentIds = newSteps[index].ingredient_ids || []
+                                  if (e.target.checked) {
+                                    newSteps[index].ingredient_ids = [...currentIds, ing.id]
+                                  } else {
+                                    newSteps[index].ingredient_ids = currentIds.filter(id => id !== ing.id)
+                                  }
+                                  setFormData({...formData, customization_steps: newSteps})
+                                }}
+                              />
+                              <span style={{fontSize: '0.9rem'}}>{ing.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {(!editingCategory?.ingredients || editingCategory.ingredients.length === 0) && (
+                          <p style={{fontSize: '0.85rem', color: '#999', margin: '0.5rem 0'}}>Aucun ingrédient disponible. Ajoutez des ingrédients d'abord.</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newSteps = [...formData.customization_steps, {
+                        order: formData.customization_steps.length + 1,
+                        title: '',
+                        required: true,
+                        selection_mode: 'multiple',
+                        min_selections: null,
+                        max_selections: null,
+                        ingredient_ids: []
+                      }]
+                      setFormData({...formData, customization_steps: newSteps})
+                    }}
+                    style={{marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem'}}
+                  >
+                    + Ajouter une étape
+                  </button>
+                </div>
+              )}
+
               <div className="form-actions">
                 <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Annuler</button>
                 <button type="submit" className="btn-primary">{editingCategory ? 'Mettre à jour' : 'Créer'}</button>

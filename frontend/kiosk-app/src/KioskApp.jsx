@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import HomePage from "./pages/HomePage";
 import MenuPage from "./pages/MenuPage";
+import CustomizePage from "./pages/CustomizePage";
 import CartPage from "./pages/CartPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
 
@@ -10,6 +11,9 @@ function KioskApp() {
   const [cart, setCart] = useState([]);
   const [orderNumber, setOrderNumber] = useState(null);
   const [orderType, setOrderType] = useState(null); // 'takeaway' or 'dine-in'
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [pendingItemForExtras, setPendingItemForExtras] = useState(null);
 
   // Auto-reset to home after 2 minutes of inactivity
   useEffect(() => {
@@ -103,10 +107,41 @@ function KioskApp() {
     setCart([]);
     setOrderNumber(null);
     setOrderType(null);
+    setSelectedItem(null);
+    setSelectedCategory(null);
   };
 
   const handleStartOrder = (type) => {
     setOrderType(type);
+    setPage("menu");
+  };
+
+  const handleCustomizeItem = (item, category) => {
+    setSelectedItem(item);
+    setSelectedCategory(category);
+    setPage("customize");
+  };
+
+  const handleCustomizeComplete = (customizedItem) => {
+    // Check if category should show supplements
+    if (selectedCategory?.show_supplements) {
+      // Go back to menu and show extras modal
+      setPendingItemForExtras(customizedItem);
+      setSelectedItem(null);
+      setSelectedCategory(null);
+      setPage("menu");
+    } else {
+      // No supplements, add directly to cart
+      addToCart(customizedItem);
+      setSelectedItem(null);
+      setSelectedCategory(null);
+      setPage("menu");
+    }
+  };
+
+  const handleCustomizeBack = () => {
+    setSelectedItem(null);
+    setSelectedCategory(null);
     setPage("menu");
   };
 
@@ -117,8 +152,19 @@ function KioskApp() {
         <MenuPage
           cart={cart}
           onAddToCart={addToCart}
+          onCustomize={handleCustomizeItem}
           onViewCart={() => setPage("cart")}
           onBack={goHome}
+          pendingItemForExtras={pendingItemForExtras}
+          onExtrasComplete={() => setPendingItemForExtras(null)}
+        />
+      )}
+      {page === "customize" && selectedItem && selectedCategory && (
+        <CustomizePage
+          selectedItem={selectedItem}
+          category={selectedCategory}
+          onComplete={handleCustomizeComplete}
+          onBack={handleCustomizeBack}
         />
       )}
       {page === "cart" && (

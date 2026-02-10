@@ -17,7 +17,7 @@ const pizzaGridPhotos = {
   'Royal': '/assets/pizza-grid/Royal_processed.png',
 }
 
-function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
+function MenuPage({ cart, onAddToCart, onCustomize, onViewCart, onBack, pendingItemForExtras, onExtrasComplete }) {
   const [menu, setMenu] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedCategoryId, setSelectedCategoryId] = useState(null) // null = first category
@@ -46,6 +46,17 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Handle pending item from CustomizePage
+  useEffect(() => {
+    if (pendingItemForExtras) {
+      setPendingMainItem(pendingItemForExtras)
+      // Get extras items
+      const extras = menu.filter(item => item.is_extra)
+      setExtrasItems(extras)
+      setShowExtrasModal(true)
+    }
+  }, [pendingItemForExtras, menu])
 
   const fetchData = async () => {
     try {
@@ -96,6 +107,14 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
   const handleItemClick = (item) => {
+    // Check if category has customization steps configured
+    if (currentCategory?.customization_steps && currentCategory.customization_steps.length > 0) {
+      // Navigate to full-page customization flow
+      onCustomize(item, currentCategory)
+      return
+    }
+
+    // Otherwise, use the modal flow
     setSelectedItem(item)
     setSelectedSize(null)
     setSelectedIngredients([])
@@ -120,8 +139,8 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
       }
     }
 
-    // Store main item and show extras modal
-    setPendingMainItem({
+    // Prepare item data
+    const itemToAdd = {
       ...selectedItem,
       price: finalPrice,
       originalPrice: selectedItem.price,
@@ -129,14 +148,27 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
         size: selectedSize,
         ingredients: selectedIngredients
       } : null
-    })
+    }
 
-    // Get extras items (only items marked as extras)
-    const extras = menu.filter(item => item.is_extra)
-    setExtrasItems(extras)
+    // Check if category should show supplements
+    if (currentCategory?.show_supplements) {
+      // Store main item and show extras modal
+      setPendingMainItem(itemToAdd)
 
-    setShowModal(false)
-    setShowExtrasModal(true)
+      // Get extras items (only items marked as extras)
+      const extras = menu.filter(item => item.is_extra)
+      setExtrasItems(extras)
+
+      setShowModal(false)
+      setShowExtrasModal(true)
+    } else {
+      // Add directly to cart without showing supplements
+      onAddToCart(itemToAdd)
+      setShowModal(false)
+      setSelectedItem(null)
+      setSelectedSize(null)
+      setSelectedIngredients([])
+    }
   }
 
   const handleAddToCartWithExtras = () => {
@@ -160,6 +192,11 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     setSelectedItem(null)
     setSelectedSize(null)
     setSelectedIngredients([])
+
+    // Notify parent that extras flow is complete
+    if (onExtrasComplete) {
+      onExtrasComplete()
+    }
   }
 
   const handleSkipExtras = () => {
@@ -175,6 +212,11 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     setSelectedItem(null)
     setSelectedSize(null)
     setSelectedIngredients([])
+
+    // Notify parent that extras flow is complete
+    if (onExtrasComplete) {
+      onExtrasComplete()
+    }
   }
 
   const handleBuildYourOwnContinueToExtras = () => {
@@ -182,8 +224,8 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     const allIngredients = [...buildYourOwnMeats, ...buildYourOwnSauces]
     const totalPrice = (buildYourOwnSize?.price || 0) + allIngredients.reduce((sum, i) => sum + i.price, 0)
 
-    // Store the build-your-own item
-    setPendingMainItem({
+    // Prepare the build-your-own item
+    const itemToAdd = {
       id: `build-${Date.now()}`,
       name: buildYourOwnName.trim() || `${currentCategory.display_name} personnalisé`,
       price: totalPrice,
@@ -191,11 +233,7 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
         size: buildYourOwnSize,
         ingredients: allIngredients
       }
-    })
-
-    // Get extras items
-    const extras = menu.filter(item => item.is_extra)
-    setExtrasItems(extras)
+    }
 
     // Reset build-your-own state
     setBuildYourOwnStep('size')
@@ -204,8 +242,21 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     setBuildYourOwnSauces([])
     setBuildYourOwnName('')
 
-    // Show extras modal
-    setShowExtrasModal(true)
+    // Check if category should show supplements
+    if (currentCategory?.show_supplements) {
+      // Store item and show extras modal
+      setPendingMainItem(itemToAdd)
+
+      // Get extras items
+      const extras = menu.filter(item => item.is_extra)
+      setExtrasItems(extras)
+
+      // Show extras modal
+      setShowExtrasModal(true)
+    } else {
+      // Add directly to cart without showing supplements
+      onAddToCart(itemToAdd)
+    }
   }
 
   const handleCategoryChange = (categoryId) => {
@@ -302,8 +353,8 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
         <div className="pizza-grid">
           {loading ? (
             <div className="loading-message">Chargement...</div>
-          ) : currentCategory?.is_build_your_own ? (
-            // For build-your-own categories, show sizes and ingredients grid
+          ) : currentCategory?.is_build_your_own && (!currentCategory?.customization_steps || currentCategory.customization_steps.length === 0) ? (
+            // For build-your-own categories WITHOUT customization steps, show OLD builder
             <>
               {buildYourOwnStep === 'size' && (
                 <>
@@ -472,19 +523,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
             <div className="modal-pizza-info">
               <h2 className="modal-pizza-name">Votre {currentCategory.display_name}</h2>
 
-              {/* Name input */}
-              <div className="name-input-section">
-                <label htmlFor="build-name">Donnez un nom à votre création:</label>
-                <input
-                  id="build-name"
-                  type="text"
-                  className="name-input"
-                  placeholder={`Ex: Mon ${currentCategory.display_name} spécial`}
-                  value={buildYourOwnName}
-                  onChange={(e) => setBuildYourOwnName(e.target.value)}
-                />
-              </div>
-
               {/* Selected items summary */}
               <div className="build-summary">
                 <h3>Votre sélection:</h3>
@@ -555,7 +593,7 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                 onClick={handleBuildYourOwnContinueToExtras}
                 disabled={!buildYourOwnSize || buildYourOwnMeats.length === 0}
               >
-                Continuer
+                {currentCategory?.show_supplements ? 'Continuer' : 'Ajouter au panier'}
               </button>
             </div>
           </div>
@@ -669,7 +707,7 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                 onClick={handleContinueToExtras}
                 disabled={currentCategory?.is_customizable && currentCategory.sizes?.length > 0 && !selectedSize}
               >
-                Continuer
+                {currentCategory?.show_supplements ? 'Continuer' : 'Ajouter au panier'}
               </button>
             </div>
           </div>

@@ -73,6 +73,8 @@ router.get('/', async (req, res) => {
         is_active: row.is_active === 1,
         is_customizable: row.is_customizable === 1,
         is_build_your_own: row.is_build_your_own === 1,
+        show_supplements: row.show_supplements === 1,
+        customization_steps: row.customization_steps ? JSON.parse(row.customization_steps) : null,
         sizes,
         ingredients
       };
@@ -126,6 +128,8 @@ router.get('/:id', async (req, res) => {
         is_active: row.is_active === 1,
         is_customizable: row.is_customizable === 1,
         is_build_your_own: row.is_build_your_own === 1,
+        show_supplements: row.show_supplements === 1,
+        customization_steps: row.customization_steps ? JSON.parse(row.customization_steps) : null,
         sizes,
         ingredients
       },
@@ -142,7 +146,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/categories - Create new category
 router.post('/', async (req, res) => {
   try {
-    const { name, display_name, icon, display_order, is_active, is_customizable, is_build_your_own } = req.body;
+    const { name, display_name, icon, display_order, is_active, is_customizable, is_build_your_own, show_supplements, customization_steps } = req.body;
 
     if (!name || !display_name) {
       return res.status(400).json({
@@ -152,9 +156,9 @@ router.post('/', async (req, res) => {
     }
 
     const result = await run(
-      `INSERT INTO categories (name, display_name, icon, display_order, is_active, is_customizable, is_build_your_own)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, display_name, icon || '', display_order || 0, is_active !== false ? 1 : 0, is_customizable ? 1 : 0, is_build_your_own ? 1 : 0]
+      `INSERT INTO categories (name, display_name, icon, display_order, is_active, is_customizable, is_build_your_own, show_supplements, customization_steps)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, display_name, icon || '', display_order || 0, is_active !== false ? 1 : 0, is_customizable ? 1 : 0, is_build_your_own ? 1 : 0, show_supplements !== false ? 1 : 0, customization_steps ? JSON.stringify(customization_steps) : null]
     );
 
     const newCategory = await queryOne('SELECT * FROM categories WHERE id = ?', [result.lastID]);
@@ -166,6 +170,8 @@ router.post('/', async (req, res) => {
         is_active: newCategory.is_active === 1,
         is_customizable: newCategory.is_customizable === 1,
         is_build_your_own: newCategory.is_build_your_own === 1,
+        show_supplements: newCategory.show_supplements === 1,
+        customization_steps: newCategory.customization_steps ? JSON.parse(newCategory.customization_steps) : null,
         sizes: [],
         ingredients: []
       },
@@ -183,7 +189,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, display_name, icon, display_order, is_active, is_customizable, is_build_your_own } = req.body;
+    const { name, display_name, icon, display_order, is_active, is_customizable, is_build_your_own, show_supplements, customization_steps } = req.body;
 
     const existing = await queryOne('SELECT * FROM categories WHERE id = ?', [id]);
     if (!existing) {
@@ -201,9 +207,11 @@ router.put('/:id', async (req, res) => {
         display_order = COALESCE(?, display_order),
         is_active = COALESCE(?, is_active),
         is_customizable = COALESCE(?, is_customizable),
-        is_build_your_own = COALESCE(?, is_build_your_own)
+        is_build_your_own = COALESCE(?, is_build_your_own),
+        show_supplements = COALESCE(?, show_supplements),
+        customization_steps = COALESCE(?, customization_steps)
        WHERE id = ?`,
-      [name, display_name, icon, display_order, is_active !== undefined ? (is_active ? 1 : 0) : null, is_customizable !== undefined ? (is_customizable ? 1 : 0) : null, is_build_your_own !== undefined ? (is_build_your_own ? 1 : 0) : null, id]
+      [name, display_name, icon, display_order, is_active !== undefined ? (is_active ? 1 : 0) : null, is_customizable !== undefined ? (is_customizable ? 1 : 0) : null, is_build_your_own !== undefined ? (is_build_your_own ? 1 : 0) : null, show_supplements !== undefined ? (show_supplements ? 1 : 0) : null, customization_steps !== undefined ? JSON.stringify(customization_steps) : null, id]
     );
 
     const updated = await queryOne('SELECT * FROM categories WHERE id = ?', [id]);
@@ -230,6 +238,8 @@ router.put('/:id', async (req, res) => {
         is_active: updated.is_active === 1,
         is_customizable: updated.is_customizable === 1,
         is_build_your_own: updated.is_build_your_own === 1,
+        show_supplements: updated.show_supplements === 1,
+        customization_steps: updated.customization_steps ? JSON.parse(updated.customization_steps) : null,
         sizes,
         ingredients
       },
@@ -398,6 +408,29 @@ router.delete('/:id/sizes/:sizeId', async (req, res) => {
 });
 
 // ============= INGREDIENTS ENDPOINTS =============
+
+// GET /api/categories/:id/ingredients - Get all ingredients for a category
+router.get('/:id/ingredients', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const ingredients = await query(
+      'SELECT * FROM category_ingredients WHERE category_id = ? AND is_active = 1 ORDER BY display_order, id',
+      [id]
+    );
+
+    res.json({
+      success: true,
+      data: ingredients,
+    });
+  } catch (error) {
+    logger.error('Error fetching ingredients:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 // POST /api/categories/:id/ingredients - Add ingredient to category
 router.post('/:id/ingredients', upload.single('image'), async (req, res) => {
