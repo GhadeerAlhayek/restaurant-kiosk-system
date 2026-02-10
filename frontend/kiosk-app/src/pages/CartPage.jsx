@@ -84,10 +84,6 @@ function CartPage({ cart, onUpdateQuantity, onClear, onBack, onCheckout }) {
                         </div>
                       )}
 
-                      {item.instructions && (
-                        <p className="item-instructions">Note: {item.instructions}</p>
-                      )}
-
                       <p className="item-price">{item.price.toFixed(2)}€</p>
                     </div>
                     <div className="item-controls">

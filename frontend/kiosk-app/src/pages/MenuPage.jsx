@@ -24,7 +24,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
   const [baseFilter, setBaseFilter] = useState('all') // all, tomato, cream
   const [selectedItem, setSelectedItem] = useState(null)
   const [showModal, setShowModal] = useState(false)
-  const [instructions, setInstructions] = useState('')
   const [loading, setLoading] = useState(true)
 
   // Customization state
@@ -98,7 +97,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
 
   const handleItemClick = (item) => {
     setSelectedItem(item)
-    setInstructions('')
     setSelectedSize(null)
     setSelectedIngredients([])
 
@@ -127,7 +125,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
       ...selectedItem,
       price: finalPrice,
       originalPrice: selectedItem.price,
-      instructions: instructions.trim() || null,
       customizations: currentCategory?.is_customizable ? {
         size: selectedSize,
         ingredients: selectedIngredients
@@ -161,7 +158,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     setSelectedExtras([])
     setPendingMainItem(null)
     setSelectedItem(null)
-    setInstructions('')
     setSelectedSize(null)
     setSelectedIngredients([])
   }
@@ -177,7 +173,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     setSelectedExtras([])
     setPendingMainItem(null)
     setSelectedItem(null)
-    setInstructions('')
     setSelectedSize(null)
     setSelectedIngredients([])
   }
@@ -192,7 +187,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
       id: `build-${Date.now()}`,
       name: buildYourOwnName.trim() || `${currentCategory.display_name} personnalisé`,
       price: totalPrice,
-      instructions: instructions.trim() || null,
       build_your_own: {
         size: buildYourOwnSize,
         ingredients: allIngredients
@@ -209,7 +203,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
     setBuildYourOwnMeats([])
     setBuildYourOwnSauces([])
     setBuildYourOwnName('')
-    setInstructions('')
 
     // Show extras modal
     setShowExtrasModal(true)
@@ -557,18 +550,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                 </div>
               </div>
 
-              <div className="instructions-section">
-                <label htmlFor="build-instructions">Instructions pour la cuisine:</label>
-                <textarea
-                  id="build-instructions"
-                  className="instructions-input"
-                  placeholder="Ex: Sans oignons, bien cuite, etc."
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  rows={3}
-                />
-              </div>
-
               <button
                 className="modal-add-btn"
                 onClick={handleBuildYourOwnContinueToExtras}
@@ -682,18 +663,6 @@ function MenuPage({ cart, onAddToCart, onViewCart, onBack }) {
                   </div>
                 </div>
               )}
-
-              <div className="instructions-section">
-                <label htmlFor="instructions">Instructions pour la cuisine:</label>
-                <textarea
-                  id="instructions"
-                  className="instructions-input"
-                  placeholder="Ex: Sans oignons, bien cuite, etc."
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  rows={3}
-                />
-              </div>
 
               <button
                 className="modal-add-btn"

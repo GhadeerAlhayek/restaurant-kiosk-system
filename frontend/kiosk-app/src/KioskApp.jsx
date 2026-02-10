@@ -80,7 +80,6 @@ function KioskApp() {
             quantity: item.quantity,
             price: item.price, // Include final price with customizations
             name: item.name, // For build-your-own items
-            instructions: item.instructions || null,
             customizations: item.customizations || null,
             build_your_own: item.build_your_own || null,
           })),
