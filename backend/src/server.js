@@ -34,6 +34,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files (menu images)
 app.use('/api/images', express.static(__dirname + '/../../assets/menu-images'));
+app.use('/uploads', express.static(__dirname + '/../uploads'));
 
 // Request logging middleware
 app.use((req, res, next) => {

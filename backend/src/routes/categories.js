@@ -9,7 +9,7 @@ const fs = require('fs');
 // Configure multer for image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../../assets/menu-images');
+    const uploadDir = path.join(__dirname, '../../uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -460,7 +460,7 @@ router.post('/:id/ingredients', upload.single('image'), async (req, res) => {
       });
     }
 
-    const imageUrl = req.file ? req.file.filename : null;
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
     const ingredientType = type || 'other';
 
     const result = await run(
@@ -498,7 +498,23 @@ router.put('/:id/ingredients/:ingredientId', upload.single('image'), async (req,
       });
     }
 
-    const imageUrl = req.file ? req.file.filename : null;
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    // If a new image is uploaded, delete the old image file
+    if (req.file && existing.image_url) {
+      const oldFilename = existing.image_url.replace('/uploads/', '');
+      const oldFilePath = path.join(__dirname, '../../uploads', oldFilename);
+
+      if (fs.existsSync(oldFilePath)) {
+        try {
+          fs.unlinkSync(oldFilePath);
+          logger.info(`Deleted old image file: ${oldFilename}`);
+        } catch (fileError) {
+          logger.error(`Error deleting old image file: ${fileError.message}`);
+          // Continue with update even if old file deletion fails
+        }
+      }
+    }
 
     await run(
       `UPDATE category_ingredients SET
@@ -538,6 +554,22 @@ router.delete('/:id/ingredients/:ingredientId', async (req, res) => {
         success: false,
         error: 'Ingredient not found',
       });
+    }
+
+    // Delete associated image file if it exists
+    if (existing.image_url) {
+      const filename = existing.image_url.replace('/uploads/', '');
+      const filePath = path.join(__dirname, '../../uploads', filename);
+
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          logger.info(`Deleted image file: ${filename}`);
+        } catch (fileError) {
+          logger.error(`Error deleting image file: ${fileError.message}`);
+          // Continue with DB deletion even if file deletion fails
+        }
+      }
     }
 
     await run('DELETE FROM category_ingredients WHERE id = ?', [ingredientId]);
