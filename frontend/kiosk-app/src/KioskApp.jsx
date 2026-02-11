@@ -5,6 +5,7 @@ import MenuPage from "./pages/MenuPage";
 import CustomizePage from "./pages/CustomizePage";
 import CartPage from "./pages/CartPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
+import { API_URL } from "./config";
 
 function KioskApp() {
   const [page, setPage] = useState("home");
@@ -73,7 +74,7 @@ function KioskApp() {
 
   const placeOrder = async () => {
     try {
-      const response = await fetch("/api/orders", {
+      const response = await fetch(`${API_URL}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

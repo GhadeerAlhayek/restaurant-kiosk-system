@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './CustomizePage.css'
+import { API_URL } from '../config'
 
 function CustomizePage({
   selectedItem,
@@ -24,7 +25,7 @@ function CustomizePage({
   const fetchStepItems = async () => {
     try {
       // Fetch all ingredients for this category
-      const res = await fetch(`http://localhost:3000/api/categories/${category.id}/ingredients`)
+      const res = await fetch(`${API_URL}/api/categories/${category.id}/ingredients`)
       const data = await res.json()
 
       if (data.success) {
@@ -216,7 +217,7 @@ function CustomizePage({
               onClick={() => handleSelectItem(item)}
             >
               {item.image_url && (
-                <img src={`http://localhost:3000${item.image_url}`} alt={item.name} />
+                <img src={`${API_URL}${item.image_url}`} alt={item.name} />
               )}
               <div className="ingredient-info">
                 <h3>{item.name}</h3>

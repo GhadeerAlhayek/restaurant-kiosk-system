@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './MenuPage.css'
+import { API_URL } from '../config'
 
 // Mapping pizza names to grid photos (transparent background)
 const pizzaGridPhotos = {
@@ -62,8 +63,8 @@ function MenuPage({ cart, onAddToCart, onCustomize, onViewCart, onBack, pendingI
     try {
       // Fetch both menu and categories
       const [menuRes, catRes] = await Promise.all([
-        fetch('/api/menu?available=true'),
-        fetch('/api/categories')
+        fetch(`${API_URL}/api/menu?available=true`),
+        fetch(`${API_URL}/api/categories`)
       ])
 
       const menuData = await menuRes.json()
