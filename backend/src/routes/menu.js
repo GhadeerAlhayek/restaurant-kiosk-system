@@ -70,6 +70,7 @@ router.get('/', async (req, res) => {
     const data = rows.map(row => ({
       ...row,
       ingredients: row.ingredients ? JSON.parse(row.ingredients) : [],
+      customization_steps: row.customization_steps ? JSON.parse(row.customization_steps) : null,
       is_available: row.is_available === 1
     }));
 
@@ -107,6 +108,7 @@ router.get('/:id', async (req, res) => {
     const data = {
       ...row,
       ingredients: row.ingredients ? JSON.parse(row.ingredients) : [],
+      customization_steps: row.customization_steps ? JSON.parse(row.customization_steps) : null,
       is_available: row.is_available === 1
     };
 
@@ -126,7 +128,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/menu - Create new menu item
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, description, base_type, price, ingredients, is_available, is_extra, category_id, display_order } = req.body;
+    const { name, description, base_type, price, ingredients, is_available, is_extra, category_id, display_order, customization_steps } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({
@@ -137,13 +139,16 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     const image_url = req.file ? req.file.filename : null;
     const ingredientsJson = ingredients ? (typeof ingredients === 'string' ? ingredients : JSON.stringify(ingredients)) : null;
+    const customizationStepsJson = customization_steps && customization_steps !== ''
+      ? (typeof customization_steps === 'string' ? customization_steps : JSON.stringify(customization_steps))
+      : null;
 
     // Parse category_id as integer, handle empty string
     const parsedCategoryId = category_id && category_id !== '' ? parseInt(category_id) : null;
 
     const result = await run(
-      `INSERT INTO menu_items (name, description, base_type, price, image_url, ingredients, is_available, is_extra, category_id, display_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO menu_items (name, description, base_type, price, image_url, ingredients, is_available, is_extra, category_id, display_order, customization_steps)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
         description || '',
@@ -154,7 +159,8 @@ router.post('/', upload.single('image'), async (req, res) => {
         is_available !== 'false' ? 1 : 0,
         is_extra === 'true' || is_extra === true ? 1 : 0,
         parsedCategoryId,
-        display_order ? parseInt(display_order) : 0
+        display_order ? parseInt(display_order) : 0,
+        customizationStepsJson
       ]
     );
 
@@ -165,6 +171,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       data: {
         ...newItem,
         ingredients: newItem.ingredients ? JSON.parse(newItem.ingredients) : [],
+        customization_steps: newItem.customization_steps ? JSON.parse(newItem.customization_steps) : null,
         is_available: newItem.is_available === 1
       },
     });
@@ -181,7 +188,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, base_type, price, ingredients, is_available, is_extra, category_id, display_order } = req.body;
+    const { name, description, base_type, price, ingredients, is_available, is_extra, category_id, display_order, customization_steps } = req.body;
 
     const existing = await queryOne('SELECT * FROM menu_items WHERE id = ?', [id]);
     if (!existing) {
@@ -207,6 +214,10 @@ router.put('/:id', upload.single('image'), async (req, res) => {
       ? (typeof ingredients === 'string' ? ingredients : JSON.stringify(ingredients))
       : existing.ingredients;
 
+    const customizationStepsJson = customization_steps !== undefined
+      ? (customization_steps && customization_steps !== '' ? (typeof customization_steps === 'string' ? customization_steps : JSON.stringify(customization_steps)) : null)
+      : existing.customization_steps;
+
     // Parse category_id as integer
     const parsedCategoryId = category_id !== undefined && category_id !== '' ? parseInt(category_id) : null;
 
@@ -221,7 +232,8 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         is_available = COALESCE(?, is_available),
         is_extra = COALESCE(?, is_extra),
         category_id = ?,
-        display_order = COALESCE(?, display_order)
+        display_order = COALESCE(?, display_order),
+        customization_steps = ?
        WHERE id = ?`,
       [
         name,
@@ -234,6 +246,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         is_extra !== undefined ? (is_extra === 'true' || is_extra === true ? 1 : 0) : null,
         parsedCategoryId !== null ? parsedCategoryId : existing.category_id,
         display_order ? parseInt(display_order) : null,
+        customizationStepsJson,
         id
       ]
     );
@@ -245,6 +258,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
       data: {
         ...updated,
         ingredients: updated.ingredients ? JSON.parse(updated.ingredients) : [],
+        customization_steps: updated.customization_steps ? JSON.parse(updated.customization_steps) : null,
         is_available: updated.is_available === 1
       },
     });

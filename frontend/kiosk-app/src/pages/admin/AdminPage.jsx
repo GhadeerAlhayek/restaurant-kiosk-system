@@ -959,7 +959,8 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
     category_id: '',
     is_available: true,
     is_extra: false,
-    display_order: 0
+    display_order: 0,
+    customization_steps: null
   })
   const [imageFile, setImageFile] = useState(null)
 
@@ -989,7 +990,8 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
       category_id: selectedCategory || '',
       is_available: true,
       is_extra: false,
-      display_order: 0
+      display_order: 0,
+      customization_steps: null
     })
     setShowModal(true)
   }
@@ -1000,7 +1002,16 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
     try {
       const formDataToSend = new FormData()
       Object.keys(formData).forEach(key => {
-        formDataToSend.append(key, formData[key])
+        if (key === 'customization_steps') {
+          // Handle customization_steps specially - stringify if object, send null if empty
+          if (formData[key] && typeof formData[key] === 'object') {
+            formDataToSend.append(key, JSON.stringify(formData[key]))
+          } else if (formData[key] === null) {
+            formDataToSend.append(key, '')
+          }
+        } else {
+          formDataToSend.append(key, formData[key])
+        }
       })
       if (imageFile) {
         formDataToSend.append('image', imageFile)
@@ -1021,7 +1032,7 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
         setEditingItem(null)
         setImageFile(null)
         setImagePreview(null)
-        setFormData({ name: '', description: '', base_type: 'tomato', price: '', category_id: '', is_available: true, display_order: 0 })
+        setFormData({ name: '', description: '', base_type: 'tomato', price: '', category_id: '', is_available: true, is_extra: false, display_order: 0, customization_steps: null })
         onRefresh()
       } else {
         showNotification(data.error, 'error')
@@ -1041,7 +1052,8 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
       category_id: item.category_id || '',
       is_available: item.is_available,
       is_extra: item.is_extra || false,
-      display_order: item.display_order || 0
+      display_order: item.display_order || 0,
+      customization_steps: item.customization_steps || null
     })
     setImagePreview(item.image_url ? `${API_URL}/images/${item.image_url}` : null)
     setShowModal(true)
@@ -1258,6 +1270,166 @@ function MenuItemsPage({ menuItems, categories, onRefresh, showNotification }) {
                   </label>
                 </div>
               </div>
+
+              {/* Custom Customization Steps for this item */}
+              <div className="form-group checkbox">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.customization_steps !== null && formData.customization_steps !== undefined}
+                    onChange={e => {
+                      if (e.target.checked) {
+                        setFormData({...formData, customization_steps: []})
+                      } else {
+                        setFormData({...formData, customization_steps: null})
+                      }
+                    }}
+                  />
+                  Personnaliser les étapes pour cet item (sinon utilise celles de la catégorie)
+                </label>
+              </div>
+
+              {formData.customization_steps !== null && formData.customization_steps !== undefined && (
+                <div className="customization-steps-section" style={{marginTop: '1rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px', background: '#f9f9f9'}}>
+                  <h4>Étapes de personnalisation pour cet item</h4>
+                  <p style={{fontSize: '0.9rem', color: '#666'}}>Définissez les étapes spécifiques à cet item (ex: Tacos M vs Tacos L)</p>
+
+                  {formData.customization_steps.map((step, index) => {
+                    // Get ingredients from selected category
+                    const selectedCat = categories.find(c => c.id === parseInt(formData.category_id))
+                    const availableIngredients = selectedCat?.ingredients || []
+
+                    return (
+                      <div key={index} style={{marginBottom: '1rem', padding: '1rem', background: 'white', borderRadius: '8px', border: '1px solid #ddd'}}>
+                        <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem'}}>
+                          <span style={{minWidth: '40px', fontWeight: 'bold', fontSize: '1.2rem', color: '#e04403'}}>#{index + 1}</span>
+                          <input
+                            type="text"
+                            value={step.title || ''}
+                            onChange={e => {
+                              const newSteps = [...formData.customization_steps]
+                              newSteps[index].title = e.target.value
+                              setFormData({...formData, customization_steps: newSteps})
+                            }}
+                            placeholder="Titre de l'étape (ex: Choisissez 3 ingrédients)"
+                            style={{flex: 1, padding: '0.75rem', fontSize: '1rem', border: '2px solid #ddd', borderRadius: '6px'}}
+                          />
+                          <select
+                            value={step.selection_mode || 'multiple'}
+                            onChange={e => {
+                              const newSteps = [...formData.customization_steps]
+                              newSteps[index].selection_mode = e.target.value
+                              setFormData({...formData, customization_steps: newSteps})
+                            }}
+                            style={{padding: '0.75rem', fontSize: '0.95rem', border: '2px solid #ddd', borderRadius: '6px', background: 'white', fontWeight: '600', minWidth: '140px'}}
+                          >
+                            <option value="single">Un seul</option>
+                            <option value="multiple">Multiple</option>
+                          </select>
+                          {step.selection_mode === 'multiple' && (
+                            <>
+                              <input
+                                type="number"
+                                value={step.min_selections || ''}
+                                onChange={e => {
+                                  const newSteps = [...formData.customization_steps]
+                                  newSteps[index].min_selections = e.target.value ? parseInt(e.target.value) : null
+                                  setFormData({...formData, customization_steps: newSteps})
+                                }}
+                                placeholder="Min"
+                                style={{width: '70px', padding: '0.75rem 0.5rem', border: '2px solid #ddd', borderRadius: '6px', textAlign: 'center'}}
+                              />
+                              <input
+                                type="number"
+                                value={step.max_selections || ''}
+                                onChange={e => {
+                                  const newSteps = [...formData.customization_steps]
+                                  newSteps[index].max_selections = e.target.value ? parseInt(e.target.value) : null
+                                  setFormData({...formData, customization_steps: newSteps})
+                                }}
+                                placeholder="Max"
+                                style={{width: '70px', padding: '0.75rem 0.5rem', border: '2px solid #ddd', borderRadius: '6px', textAlign: 'center'}}
+                              />
+                            </>
+                          )}
+                          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'white', borderRadius: '6px', border: '2px solid #ddd', whiteSpace: 'nowrap'}}>
+                            <input
+                              type="checkbox"
+                              checked={step.required || false}
+                              onChange={e => {
+                                const newSteps = [...formData.customization_steps]
+                                newSteps[index].required = e.target.checked
+                                setFormData({...formData, customization_steps: newSteps})
+                              }}
+                            />
+                            <span style={{fontWeight: '600'}}>Requis</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newSteps = formData.customization_steps.filter((_, i) => i !== index)
+                              setFormData({...formData, customization_steps: newSteps})
+                            }}
+                            style={{padding: '0.75rem 1rem', background: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem'}}
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        <div style={{marginTop: '0.75rem', padding: '0.75rem', background: '#f9f9f9', borderRadius: '4px'}}>
+                          <div style={{fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.9rem'}}>Ingrédients disponibles:</div>
+                          {availableIngredients.length > 0 ? (
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto'}}>
+                              {availableIngredients.map(ing => (
+                                <label key={ing.id} style={{display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem', cursor: 'pointer'}}>
+                                  <input
+                                    type="checkbox"
+                                    checked={(step.ingredient_ids || []).includes(ing.id)}
+                                    onChange={e => {
+                                      const newSteps = [...formData.customization_steps]
+                                      const currentIds = newSteps[index].ingredient_ids || []
+                                      if (e.target.checked) {
+                                        newSteps[index].ingredient_ids = [...currentIds, ing.id]
+                                      } else {
+                                        newSteps[index].ingredient_ids = currentIds.filter(id => id !== ing.id)
+                                      }
+                                      setFormData({...formData, customization_steps: newSteps})
+                                    }}
+                                  />
+                                  <span style={{fontSize: '0.9rem'}}>{ing.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{fontSize: '0.85rem', color: '#999', margin: '0.5rem 0'}}>
+                              {formData.category_id ? 'Cette catégorie n\'a pas d\'ingrédients. Allez dans Catégories > Gérer pour en ajouter.' : 'Sélectionnez d\'abord une catégorie'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newSteps = [...formData.customization_steps, {
+                        order: formData.customization_steps.length + 1,
+                        title: '',
+                        required: true,
+                        selection_mode: 'multiple',
+                        min_selections: null,
+                        max_selections: null,
+                        ingredient_ids: []
+                      }]
+                      setFormData({...formData, customization_steps: newSteps})
+                    }}
+                    style={{marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem'}}
+                  >
+                    + Ajouter une étape
+                  </button>
+                </div>
+              )}
 
               <div className="form-actions">
                 <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Annuler</button>

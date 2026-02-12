@@ -12,7 +12,8 @@ function CustomizePage({
   const [selections, setSelections] = useState({})
   const [ingredients, setIngredients] = useState([])
 
-  const steps = category?.customization_steps || []
+  // Use item's customization_steps if available, otherwise fall back to category's steps
+  const steps = selectedItem?.customization_steps || category?.customization_steps || []
   const currentStep = steps[currentStepIndex]
 
   useEffect(() => {
