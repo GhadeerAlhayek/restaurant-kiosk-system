@@ -4,9 +4,10 @@ Self-service restaurant kiosk system for Raspberry Pi with customizable menu, ad
 
 ## Features
 
-- **Customer Kiosk**: Touchscreen ordering with build-your-own options (pizzas, sandwiches, tacos)
+- **Customer Kiosk**: Touchscreen ordering with build-your-own options (pizzas, sandwiches, tacos, etc.)
+- **Per-Item Customization**: Each menu item (e.g. "Tacos M" vs "Tacos L") can have its own customization steps and ingredient limits
 - **Thermal Receipt Printing**: Automatic receipt printing with order number when customer completes order
-- **Admin Panel**: Menu management, category configuration, order tracking, payment confirmation
+- **Admin Panel**: Menu management, category configuration, ingredient management with image uploads, order tracking, payment confirmation
 - **Kitchen Display**: Real-time order updates via WebSocket
 - **Zero-Config Networking**: Auto-discovery using mDNS (no IP configuration needed)
 - **Simple Order Numbers**: Sequential daily numbers (1, 2, 3...)
@@ -237,19 +238,25 @@ npm run dev  # Port 5173
 - Kiosk: http://localhost:5173
 - Admin: http://localhost:5173/admin
 
+> **Important**: The file `frontend/kiosk-app/.env.local` overrides the API URL for local development (points to `localhost:3000`). This file is gitignored so it won't affect the Pi build.
+
 ---
 
 ## Updating the Application
 
 ### On Your Mac:
 
-**1. Make changes and rebuild frontend:**
+**1. Make changes to source files**
+
+**2. Rebuild frontend (must be done without `.env.local` active to get production URL):**
 ```bash
 cd frontend/kiosk-app
+mv .env.local .env.local.backup
 npm run build
+mv .env.local.backup .env.local
 ```
 
-**2. Commit and push:**
+**3. Commit and push:**
 ```bash
 git add .
 git commit -m "Your changes"
@@ -263,7 +270,7 @@ git push
 cd ~/restaurant-kiosk-system
 git pull
 
-# If database migrations added:
+# If database migrations were added:
 cd backend
 npm run migrate
 
@@ -292,7 +299,9 @@ When you need to modify the database schema:
 
 ```bash
 cd backend/src/db/migrations
-nano 010_your_migration.sql  # Create new migration file
+# Create new migration file (increment number)
+nano 016_your_migration.sql
+
 cd ~/restaurant-kiosk-system/backend
 npm run migrate
 ```
@@ -337,17 +346,24 @@ restaurant-kiosk-system/
 ├── backend/
 │   ├── src/
 │   │   ├── config/         # Database config
-│   │   ├── db/migrations/  # SQL migrations
-│   │   ├── routes/         # API endpoints
+│   │   ├── db/migrations/  # SQL migrations (001 → 015)
+│   │   ├── routes/         # API endpoints (menu, categories, orders, printer)
 │   │   ├── services/       # Printer service
 │   │   └── server.js       # Main server
-│   └── data/               # SQLite database
+│   ├── data/               # SQLite database
+│   └── uploads/            # Uploaded ingredient images
 ├── frontend/kiosk-app/
 │   ├── src/
-│   │   ├── pages/          # React pages
+│   │   ├── pages/
+│   │   │   ├── MenuPage.jsx        # Customer menu
+│   │   │   ├── CustomizePage.jsx   # Build-your-own customization
+│   │   │   └── admin/AdminPage.jsx # Admin panel
+│   │   ├── config.js               # API URL config
 │   │   └── KioskApp.jsx
-│   └── dist/               # Production build
-└── assets/                 # Uploaded images
+│   ├── .env                # Production API URL (kioskserver.local:3000)
+│   ├── .env.local          # Local dev override (localhost:3000) - gitignored
+│   └── dist/               # Production build (committed to git for easy deploy)
+└── assets/                 # Menu item images
 ```
 
 ## License
