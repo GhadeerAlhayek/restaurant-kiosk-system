@@ -241,28 +241,23 @@ setInterval(async () => {
   }
 }, 10000); // Check every 10 seconds
 
-// Cleanup old orders (every 30 minutes)
+// Cleanup old orders (every 30 minutes) - delete all orders from previous days
 setInterval(async () => {
   try {
-    const { run, query } = require('./config/database');
-    const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+    const { run } = require('./config/database');
 
-    // First delete order items for old completed/cancelled orders
     await run(
       `DELETE FROM order_items WHERE order_id IN (
-        SELECT id FROM orders WHERE created_at < ? AND status IN ('completed', 'cancelled')
-      )`,
-      [fiveHoursAgo]
+        SELECT id FROM orders WHERE DATE(created_at) < DATE('now')
+      )`
     );
 
-    // Then delete the old orders
     const result = await run(
-      `DELETE FROM orders WHERE created_at < ? AND status IN ('completed', 'cancelled')`,
-      [fiveHoursAgo]
+      `DELETE FROM orders WHERE DATE(created_at) < DATE('now')`
     );
 
     if (result.changes > 0) {
-      logger.info(`Auto-cleanup: Deleted ${result.changes} orders older than 5 hours`);
+      logger.info(`Auto-cleanup: Deleted ${result.changes} orders from previous days`);
     }
   } catch (error) {
     logger.error('Order cleanup error:', error);

@@ -29,7 +29,7 @@ router.post('/', async (req, res) => {
     }
 
     const orderType = order_type || 'dine-in'; // Default to dine-in
-    const orderNumber = await generateOrderNumber();
+    let orderNumber;
 
     // Separate regular items and build-your-own items
     const regularItems = items.filter(item => item.menu_item_id);
@@ -80,11 +80,21 @@ router.post('/', async (req, res) => {
       }
     });
 
-    const orderResult = await run(
-      `INSERT INTO orders (order_number, device_id, total_amount, notes, status, order_type)
-       VALUES (?, ?, ?, ?, 'pending', ?)`,
-      [orderNumber, device_id, totalAmount, notes || null, orderType]
-    );
+    let orderResult;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      orderNumber = await generateOrderNumber();
+      try {
+        orderResult = await run(
+          `INSERT INTO orders (order_number, device_id, total_amount, notes, status, order_type)
+           VALUES (?, ?, ?, ?, 'pending', ?)`,
+          [orderNumber, device_id, totalAmount, notes || null, orderType]
+        );
+        break;
+      } catch (err) {
+        if (err.message.includes('UNIQUE constraint failed: orders.order_number') && attempt < 4) continue;
+        throw err;
+      }
+    }
 
     const orderId = orderResult.lastID;
 
