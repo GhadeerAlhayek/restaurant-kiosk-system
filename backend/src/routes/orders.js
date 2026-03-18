@@ -7,16 +7,18 @@ const printerService = require('../services/printerService');
 async function generateOrderNumber() {
   const date = new Date();
   const today = date.toISOString().split('T')[0]; // YYYY-MM-DD
+  const datePrefix = today.replace(/-/g, '').slice(4); // MMDD e.g. "0318"
 
-  // Get the highest order number used today to avoid race conditions
+  // Get the highest sequence number used today
   const result = await queryOne(
-    `SELECT MAX(CAST(order_number AS INTEGER)) as max_num FROM orders WHERE DATE(created_at) = DATE(?)`,
+    `SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = DATE(?)`,
     [today]
   );
 
-  const nextNumber = (result?.max_num || 0) + 1;
+  const nextNumber = (result?.count || 0) + 1;
 
-  return nextNumber.toString();
+  // Format: MMDD-N e.g. "0318-1", "0318-2"
+  return `${datePrefix}-${nextNumber}`;
 }
 
 router.post('/', async (req, res) => {
