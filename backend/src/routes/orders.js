@@ -8,16 +8,15 @@ async function generateOrderNumber() {
   const date = new Date();
   const today = date.toISOString().split('T')[0]; // YYYY-MM-DD
 
-  // Get count of orders created today
+  // Get the highest order number used today to avoid race conditions
   const result = await queryOne(
-    `SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = DATE(?)`,
+    `SELECT MAX(CAST(order_number AS INTEGER)) as max_num FROM orders WHERE DATE(created_at) = DATE(?)`,
     [today]
   );
 
-  const orderCount = (result?.count || 0) + 1;
+  const nextNumber = (result?.max_num || 0) + 1;
 
-  // Simple format: just the order number (1, 2, 3, etc.)
-  return orderCount.toString();
+  return nextNumber.toString();
 }
 
 router.post('/', async (req, res) => {
